@@ -1,6 +1,6 @@
 {
   "name": "garilink-backend",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "GariLink Platform API",
   "author": "GariLink",
   "private": true,
