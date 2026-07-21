@@ -1,9 +1,12 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Typography, Spacing, Layout } from '../../src/theme/tokens';
 import { useAuthStore } from '../../src/stores/auth.store';
-import { useState, useCallback } from 'react';
 import { Svg, Path } from 'react-native-svg';
+import { useSearchListings, useToggleFavourite } from '../../src/modules/marketplace/application/hooks';
+import { ListingCard } from '../../src/modules/marketplace/presentation/components/listing-card';
+import { CategorySelector, Category } from '../../src/modules/marketplace/presentation/components/category-selector';
 
 const NotificationIcon = ({ color }: { color: string }) => (
   <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -21,12 +24,25 @@ const SearchIcon = ({ color }: { color: string }) => (
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const [refreshing, setRefreshing] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category>('All');
+  
+  const { 
+    data, 
+    isLoading, 
+    isFetchingNextPage, 
+    fetchNextPage, 
+    hasNextPage,
+    refetch,
+    isRefetching
+  } = useSearchListings(selectedCategory === 'All' ? {} : { type: selectedCategory });
+
+  const { mutate: toggleFavourite } = useToggleFavourite();
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 2000);
-  }, []);
+    refetch();
+  }, [refetch]);
+
+  const listings = data?.pages.flatMap(page => page.data) || [];
 
   return (
     <View style={styles.container}>
@@ -43,9 +59,20 @@ export default function HomeScreen() {
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary[500]} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={Colors.primary[500]} />}
+        onScroll={({ nativeEvent }) => {
+          if (
+            nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height >= 
+            nativeEvent.contentSize.height - 400
+          ) {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
+            }
+          }
+        }}
+        scrollEventThrottle={400}
       >
-        {/* Search Bar (Fake) */}
+        {/* Search Bar */}
         <TouchableOpacity 
           style={styles.searchBar}
           activeOpacity={0.8}
@@ -58,47 +85,45 @@ export default function HomeScreen() {
         {/* Categories */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Categories</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContainer}>
-            {['Cars for Sale', 'Rentals', 'Parts & Spares', 'Garages', 'Insurance'].map((cat, index) => (
-              <TouchableOpacity key={index} style={styles.categoryCard}>
-                <View style={styles.categoryIconPlaceholder} />
-                <Text style={styles.categoryText}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <CategorySelector 
+            selectedCategory={selectedCategory} 
+            onSelect={setSelectedCategory} 
+          />
         </View>
 
-        {/* Featured Listings */}
+        {/* Feed */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Featured Vehicles</Text>
-            <TouchableOpacity><Text style={styles.seeAllText}>See All</Text></TouchableOpacity>
+            <Text style={styles.sectionTitle}>
+              {selectedCategory === 'All' ? 'Featured Rentals' : `${selectedCategory} Rentals`}
+            </Text>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredContainer}>
-            {[1, 2, 3].map((item) => (
-              <TouchableOpacity key={item} style={styles.featuredCard}>
-                <View style={styles.featuredImagePlaceholder}>
-                  <Text style={{color: Colors.neutral[500]}}>Image</Text>
-                </View>
-                <View style={styles.featuredDetails}>
-                  <Text style={styles.featuredTitle}>2022 Toyota Hilux</Text>
-                  <Text style={styles.featuredPrice}>KES 4,500,000</Text>
-                  <Text style={styles.featuredMeta}>Nairobi • Automatic • Diesel</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Recent Activity or Suggestions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recommended for you</Text>
-          <View style={styles.recommendedCard}>
-            <Text style={styles.recommendedTitle}>Complete your profile</Text>
-            <Text style={styles.recommendedText}>Add your details to get personalized recommendations and better trust scores.</Text>
-            <TouchableOpacity style={styles.buttonPrimary} onPress={() => router.push('/(tabs)/profile')}>
-              <Text style={styles.buttonPrimaryText}>Update Profile</Text>
-            </TouchableOpacity>
+          
+          <View style={styles.feedContainer}>
+            {isLoading ? (
+              <ActivityIndicator size="large" color={Colors.primary[500]} style={{ marginTop: Spacing.xl }} />
+            ) : listings.length > 0 ? (
+              listings.map((item) => (
+                <ListingCard
+                  key={item.id}
+                  id={item.id}
+                  title={item.title}
+                  price={item.askingPrice}
+                  currency={item.currency}
+                  location={`${item.rentalConfig?.pickupCity || 'Unknown'}, ${item.rentalConfig?.pickupCounty || ''}`}
+                  type={item.vehicle?.type || 'Vehicle'}
+                  imageUrl={item.vehicle?.primaryImageId ? `https://api.garilink.com/media/${item.vehicle.primaryImageId}` : undefined}
+                  onPress={(id) => router.push(`/listing/${id}`)}
+                  onSaveToggle={(id) => toggleFavourite({ id, action: 'save' })}
+                />
+              ))
+            ) : (
+              <Text style={styles.emptyText}>No listings found in this category.</Text>
+            )}
+            
+            {isFetchingNextPage && (
+              <ActivityIndicator size="small" color={Colors.primary[500]} style={{ marginVertical: Spacing.lg }} />
+            )}
           </View>
         </View>
       </ScrollView>
@@ -116,17 +141,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Layout.screenPadding,
-    paddingTop: Spacing.3xl,
+    paddingTop: Spacing['3xl'],
     paddingBottom: Spacing.md,
   },
   greeting: {
     fontFamily: Typography.fontFamily.regular,
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.fontSize.sm,
     color: Colors.dark.textMuted,
   },
   userName: {
     fontFamily: Typography.fontFamily.bold,
-    fontSize: Typography.sizes.xl,
+    fontSize: Typography.fontSize.xl,
     color: Colors.neutral[0],
     marginTop: 2,
   },
@@ -141,7 +166,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.border,
   },
   scrollContent: {
-    paddingBottom: Spacing.3xl,
+    paddingBottom: Spacing['3xl'],
   },
   searchBar: {
     flexDirection: 'row',
@@ -150,19 +175,19 @@ const styles = StyleSheet.create({
     marginHorizontal: Layout.screenPadding,
     paddingHorizontal: Spacing.md,
     height: 52,
-    borderRadius: Layout.borderRadius.lg,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: Colors.dark.border,
     marginBottom: Spacing.xl,
   },
   searchPlaceholder: {
     fontFamily: Typography.fontFamily.regular,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.fontSize.md,
     color: Colors.dark.textMuted,
     marginLeft: Spacing.sm,
   },
   section: {
-    marginBottom: Spacing.2xl,
+    marginBottom: Spacing['2xl'],
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -173,109 +198,19 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: Typography.fontFamily.semiBold,
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.fontSize.lg,
     color: Colors.neutral[0],
     paddingHorizontal: Layout.screenPadding,
-    marginBottom: Spacing.md,
-  },
-  seeAllText: {
-    fontFamily: Typography.fontFamily.medium,
-    fontSize: Typography.sizes.sm,
-    color: Colors.primary[400],
-  },
-  categoriesContainer: {
-    paddingHorizontal: Layout.screenPadding,
-    gap: Spacing.md,
-  },
-  categoryCard: {
-    alignItems: 'center',
-    width: 80,
-  },
-  categoryIconPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.dark.surface,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
     marginBottom: Spacing.xs,
   },
-  categoryText: {
-    fontFamily: Typography.fontFamily.medium,
-    fontSize: Typography.sizes.xs,
-    color: Colors.dark.text,
-    textAlign: 'center',
-  },
-  featuredContainer: {
+  feedContainer: {
     paddingHorizontal: Layout.screenPadding,
-    gap: Spacing.md,
   },
-  featuredCard: {
-    width: 280,
-    backgroundColor: Colors.dark.surface,
-    borderRadius: Layout.borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  featuredImagePlaceholder: {
-    width: '100%',
-    height: 160,
-    backgroundColor: Colors.dark.surfaceHover,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  featuredDetails: {
-    padding: Spacing.md,
-  },
-  featuredTitle: {
-    fontFamily: Typography.fontFamily.semiBold,
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral[0],
-    marginBottom: 4,
-  },
-  featuredPrice: {
-    fontFamily: Typography.fontFamily.bold,
-    fontSize: Typography.sizes.lg,
-    color: Colors.primary[400],
-    marginBottom: 8,
-  },
-  featuredMeta: {
-    fontFamily: Typography.fontFamily.regular,
-    fontSize: Typography.sizes.xs,
+  emptyText: {
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: Typography.fontSize.md,
     color: Colors.dark.textMuted,
-  },
-  recommendedCard: {
-    marginHorizontal: Layout.screenPadding,
-    backgroundColor: Colors.primary[900],
-    borderRadius: Layout.borderRadius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.primary[700],
-  },
-  recommendedTitle: {
-    fontFamily: Typography.fontFamily.bold,
-    fontSize: Typography.sizes.md,
-    color: Colors.primary[100],
-    marginBottom: Spacing.xs,
-  },
-  recommendedText: {
-    fontFamily: Typography.fontFamily.regular,
-    fontSize: Typography.sizes.sm,
-    color: Colors.primary[200],
-    marginBottom: Spacing.md,
-    lineHeight: 20,
-  },
-  buttonPrimary: {
-    backgroundColor: Colors.primary[500],
-    height: 40,
-    borderRadius: Layout.borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonPrimaryText: {
-    fontFamily: Typography.fontFamily.semiBold,
-    color: Colors.neutral[0],
-    fontSize: Typography.sizes.sm,
+    textAlign: 'center',
+    marginTop: Spacing.xl,
   },
 });

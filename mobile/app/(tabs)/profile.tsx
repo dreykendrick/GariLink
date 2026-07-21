@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: Layout.screenPadding,
-    paddingTop: Spacing.3xl,
+    paddingTop: Spacing['3xl'],
     paddingBottom: Spacing.md,
   },
   title: {
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: 'row',
     paddingHorizontal: Layout.screenPadding,
-    marginBottom: Spacing.2xl,
+    marginBottom: Spacing['2xl'],
     alignItems: 'center',
     gap: Spacing.lg,
   },

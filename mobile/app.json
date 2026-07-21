@@ -4,12 +4,9 @@
     "slug": "garilink",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "scheme": "garilink",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
       "backgroundColor": "#0F172A"
     },
     "assetBundlePatterns": ["**/*"],
@@ -19,10 +16,6 @@
       "buildNumber": "1"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F172A"
-      },
       "package": "ke.co.garilink.app",
       "versionCode": 1,
       "permissions": [
@@ -64,10 +57,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "eas": {
-        "projectId": "garilink-project-id"
-      },
-      "apiBaseUrl": "http://localhost:3000/api/v1"
+      "apiBaseUrl": "http://192.168.1.104:3000/api/v1"
     }
   }
 }

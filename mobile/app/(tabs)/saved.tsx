@@ -1,74 +1,68 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Colors, Typography, Spacing, Layout } from '../../src/theme/tokens';
-import { useAuthStore } from '../../src/stores/auth.store';
+import React, { useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Svg, Path } from 'react-native-svg';
-
-const HeartIcon = ({ color, filled }: { color: string; filled?: boolean }) => (
-  <Svg width="24" height="24" viewBox="0 0 24 24" fill={filled ? color : "none"} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <Path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-  </Svg>
-);
+import { Colors, Typography, Spacing, Layout, BorderRadius } from '../../src/theme/tokens';
+import { useSavedListings, useToggleFavourite } from '../../src/modules/marketplace/application/hooks';
+import { ListingCard } from '../../src/modules/marketplace/presentation/components/listing-card';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SavedScreen() {
-  const { isAuthenticated } = useAuthStore();
   const router = useRouter();
+  
+  const { 
+    data: listings, 
+    isLoading, 
+    refetch,
+    isRefetching
+  } = useSavedListings();
 
-  if (!isAuthenticated) {
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.iconCircle}>
-          <HeartIcon color={Colors.primary[400]} />
-        </View>
-        <Text style={styles.emptyTitle}>Save your favorites</Text>
-        <Text style={styles.emptyText}>Log in to save vehicles you're interested in and view them later.</Text>
-        <TouchableOpacity style={styles.buttonPrimary} onPress={() => router.push('/(auth)/login')}>
-          <Text style={styles.buttonPrimaryText}>Log In</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const { mutate: toggleFavourite } = useToggleFavourite();
 
-  // Placeholder for empty state when authenticated but no saved items
-  const hasSavedItems = true;
-
-  if (!hasSavedItems) {
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.iconCircle}>
-          <HeartIcon color={Colors.dark.textMuted} />
-        </View>
-        <Text style={styles.emptyTitle}>No saved vehicles</Text>
-        <Text style={styles.emptyText}>Vehicles you save will appear here.</Text>
-        <TouchableOpacity style={styles.buttonSecondary} onPress={() => router.push('/(tabs)/explore')}>
-          <Text style={styles.buttonSecondaryText}>Explore Vehicles</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const onRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Saved</Text>
+        <Text style={styles.headerTitle}>Saved Listings</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.listContainer}>
-        {[1, 2].map((item) => (
-          <View key={item} style={styles.listingCard}>
-            <View style={styles.listingImagePlaceholder}>
-              <Text style={{color: Colors.neutral[500]}}>Car Image</Text>
-              <TouchableOpacity style={styles.favoriteButton}>
-                <HeartIcon color={Colors.primary[400]} filled />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.listingInfo}>
-              <Text style={styles.listingTitle}>2020 Mazda CX-5</Text>
-              <Text style={styles.listingPrice}>KES 3,800,000</Text>
-              <Text style={styles.listingDetails}>Nairobi • Automatic • Petrol</Text>
-            </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={Colors.primary[500]} />}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="large" color={Colors.primary[500]} style={{ marginTop: Spacing['3xl'] }} />
+        ) : listings && listings.length > 0 ? (
+          <View style={styles.feedContainer}>
+            {listings.map((item) => (
+              <ListingCard
+                key={item.id}
+                id={item.id}
+                title={item.title}
+                price={item.askingPrice}
+                currency={item.currency}
+                location={`${item.rentalConfig?.pickupCity || 'Unknown'}, ${item.rentalConfig?.pickupCounty || ''}`}
+                type={item.vehicle?.type || 'Vehicle'}
+                imageUrl={item.vehicle?.primaryImageId ? `https://api.garilink.com/media/${item.vehicle.primaryImageId}` : undefined}
+                isSaved={true}
+                onPress={(id) => router.push(`/listing/${id}`)}
+                onSaveToggle={(id) => toggleFavourite({ id, action: 'remove' })}
+              />
+            ))}
           </View>
-        ))}
+        ) : (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="heart-outline" size={48} color={Colors.neutral[400]} />
+            </View>
+            <Text style={styles.emptyTitle}>No saved listings yet</Text>
+            <Text style={styles.emptyText}>
+              Tap the heart icon on any listing to save it here for later.
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -81,121 +75,51 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: Layout.screenPadding,
-    paddingTop: Spacing.3xl,
+    paddingTop: Spacing['4xl'],
     paddingBottom: Spacing.md,
-  },
-  title: {
-    fontFamily: Typography.fontFamily.bold,
-    fontSize: Typography.sizes['2xl'],
-    color: Colors.neutral[0],
-  },
-  listContainer: {
-    paddingHorizontal: Layout.screenPadding,
-    gap: Spacing.md,
-    paddingBottom: Spacing.2xl,
-  },
-  listingCard: {
-    backgroundColor: Colors.dark.surface,
-    borderRadius: Layout.borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  listingImagePlaceholder: {
-    width: '100%',
-    height: 180,
-    backgroundColor: Colors.dark.surfaceHover,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listingInfo: {
-    padding: Spacing.md,
-  },
-  listingTitle: {
-    fontFamily: Typography.fontFamily.semiBold,
-    fontSize: Typography.sizes.lg,
-    color: Colors.neutral[0],
-    marginBottom: 4,
-  },
-  listingPrice: {
-    fontFamily: Typography.fontFamily.bold,
-    fontSize: Typography.sizes.xl,
-    color: Colors.primary[400],
-    marginBottom: 8,
-  },
-  listingDetails: {
-    fontFamily: Typography.fontFamily.regular,
-    fontSize: Typography.sizes.sm,
-    color: Colors.dark.textMuted,
-  },
-  emptyContainer: {
-    flex: 1,
     backgroundColor: Colors.dark.bg,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border,
+  },
+  headerTitle: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Typography.fontSize['2xl'],
+    color: Colors.neutral[0],
+  },
+  scrollContent: {
+    paddingBottom: Spacing['3xl'],
+  },
+  feedContainer: {
     padding: Layout.screenPadding,
   },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.dark.surface,
-    justifyContent: 'center',
+  emptyState: {
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing['2xl'],
+    marginTop: Spacing['5xl'],
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.dark.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.xl,
     borderWidth: 1,
     borderColor: Colors.dark.border,
   },
   emptyTitle: {
-    fontFamily: Typography.fontFamily.bold,
-    fontSize: Typography.sizes.xl,
+    fontFamily: Typography.fontFamily.semiBold,
+    fontSize: Typography.fontSize.xl,
     color: Colors.neutral[0],
     marginBottom: Spacing.sm,
   },
   emptyText: {
     fontFamily: Typography.fontFamily.regular,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.fontSize.md,
     color: Colors.dark.textMuted,
     textAlign: 'center',
-    marginBottom: Spacing.xl,
-  },
-  buttonPrimary: {
-    backgroundColor: Colors.primary[500],
-    height: 48,
-    borderRadius: Layout.borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-  },
-  buttonPrimaryText: {
-    fontFamily: Typography.fontFamily.semiBold,
-    color: Colors.neutral[0],
-    fontSize: Typography.sizes.md,
-  },
-  buttonSecondary: {
-    backgroundColor: Colors.dark.surface,
-    height: 48,
-    borderRadius: Layout.borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  buttonSecondaryText: {
-    fontFamily: Typography.fontFamily.semiBold,
-    color: Colors.neutral[0],
-    fontSize: Typography.sizes.md,
+    lineHeight: Typography.lineHeight.normal,
   },
 });

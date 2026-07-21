@@ -1,5 +1,7 @@
 import { AggregateRoot } from '../../../../shared/domain/aggregate-root.base';
-import { ListingStatus, ListingType, Prisma } from '@prisma/client';
+import { ListingStatus, ListingType, Prisma, Currency } from '@prisma/client';
+import { RentalConfigVO } from '../value-objects/rental-config.vo';
+import { ListingPublished, ListingPaused, ListingArchived, ListingRestored, ListingUpdated, ListingDeleted } from '../events/listing-events';
 
 export interface ListingProps {
   vehicleId: string;
@@ -8,7 +10,7 @@ export interface ListingProps {
   type: ListingType;
   title: string;
   description: string | null;
-  pricingCurrency: string;
+  currency: Currency;
   askingPrice: number;
   negotiable: boolean;
   status: ListingStatus;
@@ -25,6 +27,9 @@ export interface ListingProps {
   county: string | null;
   country: string;
   searchVector: Prisma.NullTypes.JsonNull | null;
+  deletedAt: Date | null;
+  rentalConfig?: RentalConfigVO;
+  vehicle?: any;
 }
 
 export class Listing extends AggregateRoot<string> {
@@ -43,7 +48,7 @@ export class Listing extends AggregateRoot<string> {
   get title(): string { return this._props.title; }
   get description(): string | null { return this._props.description; }
   get askingPrice(): number { return this._props.askingPrice; }
-  get pricingCurrency(): string { return this._props.pricingCurrency; }
+  get currency(): Currency { return this._props.currency; }
   get negotiable(): boolean { return this._props.negotiable; }
   get status(): ListingStatus { return this._props.status; }
   get publishedAt(): Date | null { return this._props.publishedAt; }
@@ -51,6 +56,9 @@ export class Listing extends AggregateRoot<string> {
   get viewCount(): number { return this._props.viewCount; }
   get conditionRating(): number | null { return this._props.conditionRating; }
   get tags(): string[] { return [...this._props.tags]; }
+  get rentalConfig(): RentalConfigVO | undefined { return this._props.rentalConfig; }
+  get vehicle(): any | undefined { return this._props.vehicle; }
+  get deletedAt(): Date | null { return this._props.deletedAt; }
   get props(): Readonly<ListingProps> { return { ...this._props }; }
 
   // ─── Domain rules ─────────────────────────────────────────────────────
@@ -59,16 +67,35 @@ export class Listing extends AggregateRoot<string> {
   isActive(): boolean { return this._props.status === ListingStatus.PUBLISHED; }
 
   publish(): void {
-    if (this._props.status !== ListingStatus.DRAFT) {
-      throw new Error('Only DRAFT listings can be published');
+    if (this._props.status !== ListingStatus.DRAFT && this._props.status !== ListingStatus.PAUSED) {
+      throw new Error('Only DRAFT or PAUSED listings can be published');
     }
+    
+    // Validation
+    if (this._props.type === 'FOR_HIRE') {
+      if (!this._props.rentalConfig) {
+        throw new Error('rentalConfig is required for FOR_HIRE listings');
+      }
+    }
+    if (!this._props.askingPrice || this._props.askingPrice <= 0) {
+      throw new Error('Pricing is required to publish a listing');
+    }
+    if (!this._props.county && (!this._props.rentalConfig || !this._props.rentalConfig.pickupCounty)) {
+      throw new Error('Pickup location (county) is required to publish a listing');
+    }
+
     this._props.status = ListingStatus.PUBLISHED;
     this._props.publishedAt = new Date();
+    this.addDomainEvent(new ListingPublished(this.id));
     this.touch();
   }
 
   pause(): void {
+    if (this._props.status !== ListingStatus.PUBLISHED) {
+      throw new Error('Only PUBLISHED listings can be paused');
+    }
     this._props.status = ListingStatus.PAUSED;
+    this.addDomainEvent(new ListingPaused(this.id));
     this.touch();
   }
 
@@ -84,6 +111,17 @@ export class Listing extends AggregateRoot<string> {
 
   archive(): void {
     this._props.status = ListingStatus.ARCHIVED;
+    this.addDomainEvent(new ListingArchived(this.id));
+    this.touch();
+  }
+
+  restore(): void {
+    if (this._props.status !== ListingStatus.ARCHIVED && !this._props.deletedAt) {
+      throw new Error('Only ARCHIVED or DELETED listings can be restored');
+    }
+    this._props.status = ListingStatus.DRAFT;
+    this._props.deletedAt = null;
+    this.addDomainEvent(new ListingRestored(this.id));
     this.touch();
   }
 
@@ -92,10 +130,21 @@ export class Listing extends AggregateRoot<string> {
 
   update(fields: Partial<Omit<ListingProps, 'vehicleId' | 'workspaceId' | 'listerId'>>): void {
     this._props = { ...this._props, ...fields };
+    this.addDomainEvent(new ListingUpdated(this.id, Object.keys(fields)));
+    this.touch();
+  }
+
+  softDelete(): void {
+    this._props.deletedAt = new Date();
+    this.addDomainEvent(new ListingDeleted(this.id));
     this.touch();
   }
 
   static create(id: string, props: ListingProps): Listing {
+    if (props.type === 'FOR_HIRE' && !props.rentalConfig) {
+      throw new Error('rentalConfig is required when listing type is FOR_HIRE');
+    }
+
     return new Listing(id, {
       ...props,
       status: props.status ?? ListingStatus.DRAFT,
@@ -105,8 +154,9 @@ export class Listing extends AggregateRoot<string> {
       isFeatured: props.isFeatured ?? false,
       negotiable: props.negotiable ?? true,
       tags: props.tags ?? [],
-      pricingCurrency: props.pricingCurrency ?? 'KES',
-      country: props.country ?? 'KE',
+      currency: props.currency ?? 'TZS',
+      country: props.country ?? 'TZ',
+      deletedAt: props.deletedAt ?? null,
     });
   }
 }

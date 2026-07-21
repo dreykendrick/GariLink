@@ -1,10 +1,10 @@
-import { Global, Injectable, Logger, Module } from '@nestjs/common';
+import { Global, Injectable, Logger, Module, Optional } from '@nestjs/common';
 
 @Injectable()
 export class AppLogger {
   private readonly logger: Logger;
 
-  constructor(context?: string) {
+  constructor(@Optional() context?: string) {
     this.logger = new Logger(context ?? 'App');
   }
 

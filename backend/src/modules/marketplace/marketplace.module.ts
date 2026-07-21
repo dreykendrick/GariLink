@@ -24,6 +24,15 @@ import { AccessJwtPayload } from '../../core/security/token.service';
 import { Listing, ListingProps } from './domain/entities/listing.entity';
 import { Inquiry } from './domain/entities/inquiry.entity';
 
+import { CreateListingUseCase } from './application/use-cases/create-listing.use-case';
+import { SearchListingsUseCase } from './application/use-cases/search-listings.use-case';
+import { GetListingUseCase } from './application/use-cases/get-listing.use-case';
+import { GetSavedListingsUseCase } from './application/use-cases/get-saved-listings.use-case';
+import { ToggleFavouriteUseCase } from './application/use-cases/toggle-favourite.use-case';
+import { ListingController as NewListingController } from './presentation/controllers/listing.controller';
+import { PrismaListingRepository } from './infrastructure/repositories/prisma-listing.repository';
+
+
 // ─── Domain Errors ─────────────────────────────────────────────────────────
 
 class ListingNotFoundError extends NotFoundError {
@@ -44,51 +53,6 @@ class SavedListingAlreadyExistsError extends ConflictError {
 }
 
 // ─── DTOs ──────────────────────────────────────────────────────────────────
-
-class CreateListingDto {
-  @IsString() @IsNotEmpty() vehicleId!: string;
-  @IsString() @IsNotEmpty() workspaceId!: string;
-  @IsEnum(ListingType) type!: ListingType;
-  @IsString() @IsNotEmpty() title!: string;
-  @IsOptional() @IsString() description?: string;
-  @IsNumber() @IsPositive() askingPrice!: number;
-  @IsOptional() @IsString() pricingCurrency?: string;
-  @IsOptional() @IsBoolean() negotiable?: boolean;
-  @IsOptional() @IsNumber() @Min(1) @Type(() => Number) conditionRating?: number;
-  @IsOptional() @IsString() conditionNotes?: string;
-  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
-  @IsOptional() @IsString() county?: string;
-}
-
-class UpdateListingDto {
-  @IsOptional() @IsString() title?: string;
-  @IsOptional() @IsString() description?: string;
-  @IsOptional() @IsNumber() @IsPositive() askingPrice?: number;
-  @IsOptional() @IsBoolean() negotiable?: boolean;
-  @IsOptional() @IsNumber() conditionRating?: number;
-  @IsOptional() @IsString() conditionNotes?: string;
-  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
-  @IsOptional() @IsString() county?: string;
-}
-
-class SearchListingsDto {
-  @IsOptional() @Type(() => Number) @IsNumber() page?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() limit?: number;
-  @IsOptional() @IsString() q?: string; // text search
-  @IsOptional() @IsEnum(ListingType) type?: ListingType;
-  @IsOptional() @IsString() make?: string;
-  @IsOptional() @IsString() model?: string;
-  @IsOptional() @Type(() => Number) @IsNumber() yearMin?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() yearMax?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() priceMin?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() priceMax?: number;
-  @IsOptional() @IsString() fuelType?: string;
-  @IsOptional() @IsString() transmissionType?: string;
-  @IsOptional() @IsString() bodyType?: string;
-  @IsOptional() @IsString() county?: string;
-  @IsOptional() @IsBoolean() @Type(() => Boolean) negotiable?: boolean;
-  @IsOptional() @IsString() sortBy?: 'price_asc' | 'price_desc' | 'newest' | 'mileage';
-}
 
 class CreateInquiryDto {
   @IsString() @IsNotEmpty() message!: string;
@@ -117,7 +81,7 @@ export class MarketplaceService {
       type: r.type,
       title: r.title,
       description: r.description,
-      pricingCurrency: r.pricingCurrency,
+      currency: r.currency,
       askingPrice: r.askingPrice ? Number(r.askingPrice) : 0,
       negotiable: r.negotiable,
       status: r.status,
@@ -134,58 +98,10 @@ export class MarketplaceService {
       county: r.county,
       country: r.country,
       searchVector: null,
+      deletedAt: null,
     });
   }
 
-  async createListing(input: CreateListingDto & { userId: string }): Promise<Result<Listing, AppError>> {
-    try {
-      // Verify vehicle exists and belongs to workspace
-      const vehicle = await this.prisma.vehicle.findUnique({
-        where: { id: input.vehicleId },
-      });
-      if (!vehicle || vehicle.workspaceId !== input.workspaceId) {
-        return Result.fail(new ListingAccessDeniedError());
-      }
-      if (vehicle.status !== VehicleStatus.AVAILABLE) {
-        return Result.fail(new ForbiddenError('Vehicle must be AVAILABLE to be listed'));
-      }
-
-      const id = uuidv4();
-      const record = await this.prisma.listing.create({
-        data: {
-          id,
-          vehicleId: input.vehicleId,
-          workspaceId: input.workspaceId,
-          listerId: input.userId,
-          type: input.type,
-          title: input.title,
-          description: input.description ?? null,
-          pricingCurrency: input.pricingCurrency ?? 'KES',
-          askingPrice: input.askingPrice,
-          negotiable: input.negotiable ?? true,
-          status: ListingStatus.DRAFT,
-          conditionRating: input.conditionRating ?? null,
-          conditionNotes: input.conditionNotes ?? null,
-          tags: input.tags ?? [],
-          county: input.county ?? null,
-          country: 'KE',
-        },
-      });
-
-      await this.auditLog.log({
-        action: 'listing.created',
-        actorId: input.userId,
-        subjectType: 'Listing',
-        subjectId: id,
-        metadata: { vehicleId: input.vehicleId, type: input.type },
-      });
-
-      return Result.ok(this.toDomain(record));
-    } catch (error) {
-      if (error instanceof AppError) return Result.fail(error);
-      throw error;
-    }
-  }
 
   async publishListing(listingId: string, userId: string): Promise<Result<Listing, AppError>> {
     try {
@@ -215,29 +131,6 @@ export class MarketplaceService {
     }
   }
 
-  async updateListing(input: {
-    listingId: string;
-    userId: string;
-    fields: Partial<ListingProps>;
-  }): Promise<Result<Listing, AppError>> {
-    try {
-      const record = await this.prisma.listing.findUnique({ where: { id: input.listingId } });
-      if (!record) return Result.fail(new ListingNotFoundError());
-      if (record.listerId !== input.userId) return Result.fail(new ListingAccessDeniedError());
-
-      const data: any = { ...input.fields, updatedAt: new Date() };
-      Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
-
-      const updated = await this.prisma.listing.update({
-        where: { id: input.listingId },
-        data,
-      });
-      return Result.ok(this.toDomain(updated));
-    } catch (error) {
-      if (error instanceof AppError) return Result.fail(error);
-      throw error;
-    }
-  }
 
   async updateStatus(input: {
     listingId: string;
@@ -270,65 +163,6 @@ export class MarketplaceService {
     }
   }
 
-  async search(query: SearchListingsDto): Promise<PaginatedResult<Listing & { vehicle?: unknown }>> {
-    const page = Math.max(1, query.page ?? 1);
-    const limit = Math.min(50, query.limit ?? 20);
-    const skip = (page - 1) * limit;
-
-    const where: Prisma.ListingWhereInput = {
-      status: ListingStatus.PUBLISHED,
-    };
-
-    if (query.type) where.type = query.type;
-    if (query.county) where.county = query.county;
-    if (query.negotiable !== undefined) where.negotiable = query.negotiable;
-
-    if (query.priceMin || query.priceMax) {
-      where.askingPrice = {};
-      if (query.priceMin) (where.askingPrice as Record<string, number>).gte = query.priceMin;
-      if (query.priceMax) (where.askingPrice as Record<string, number>).lte = query.priceMax;
-    }
-
-    if (query.make || query.model || query.yearMin || query.yearMax || query.fuelType || query.bodyType) {
-      where.vehicle = {};
-      if (query.make) (where.vehicle as Record<string, unknown>).make = { contains: query.make, mode: 'insensitive' };
-      if (query.model) (where.vehicle as Record<string, unknown>).model = { contains: query.model, mode: 'insensitive' };
-      if (query.fuelType) (where.vehicle as Record<string, unknown>).fuelType = query.fuelType;
-      if (query.bodyType) (where.vehicle as Record<string, unknown>).bodyType = query.bodyType;
-      if (query.yearMin || query.yearMax) {
-        (where.vehicle as Record<string, unknown>).year = {};
-        if (query.yearMin) ((where.vehicle as Record<string, unknown>).year as Record<string, number>).gte = query.yearMin;
-        if (query.yearMax) ((where.vehicle as Record<string, unknown>).year as Record<string, number>).lte = query.yearMax;
-      }
-    }
-
-    const orderBy: Prisma.ListingOrderByWithRelationInput[] = (() => {
-      switch (query.sortBy) {
-        case 'price_asc': return [{ askingPrice: 'asc' }];
-        case 'price_desc': return [{ askingPrice: 'desc' }];
-        case 'newest': return [{ publishedAt: 'desc' }];
-        default: return [{ isFeatured: 'desc' }, { publishedAt: 'desc' }];
-      }
-    })();
-
-    const [records, total] = await this.prisma.$transaction([
-      this.prisma.listing.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy,
-        include: {
-          vehicle: {
-            select: { make: true, model: true, year: true, mileage: true, fuelType: true, transmission: true, exteriorColor: true },
-          },
-        },
-      }),
-      this.prisma.listing.count({ where }),
-    ]);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return PaginatedResult.of(records as any[], page, limit, total);
-  }
 
   async getListing(listingId: string): Promise<Result<unknown, AppError>> {
     const record = await this.prisma.listing.findUnique({
@@ -508,22 +342,10 @@ export class MarketplaceService {
 @ApiTags('Listings')
 @ApiBearerAuth()
 @Controller('listings')
-export class ListingController {
+export class LegacyListingController {
   constructor(private readonly service: MarketplaceService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a listing (starts as DRAFT)' })
-  async create(@Body() dto: CreateListingDto, @CurrentUser() user: AccessJwtPayload) {
-    const result = await this.service.createListing({ ...dto, userId: user.userId });
-    if (result.isFail) throw result.error;
-    return result.value;
-  }
 
-  @Get()
-  @ApiOperation({ summary: 'Search public listings' })
-  async search(@Query() query: SearchListingsDto) {
-    return this.service.search(query);
-  }
 
   @Get('mine')
   @ApiOperation({ summary: "Get current user's listings" })
@@ -545,21 +367,6 @@ export class ListingController {
     return result.value;
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update listing details' })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateListingDto,
-    @CurrentUser() user: AccessJwtPayload,
-  ) {
-    const result = await this.service.updateListing({
-      listingId: id,
-      userId: user.userId,
-      fields: dto as Partial<ListingProps>,
-    });
-    if (result.isFail) throw result.error;
-    return result.value;
-  }
 
   @Post(':id/publish')
   @ApiOperation({ summary: 'Publish a DRAFT listing' })
@@ -651,9 +458,29 @@ export class InquiryController {
 
 // ─── Module ───────────────────────────────────────────────────────────────────
 
+import {
+  GetMyListingsUseCase, PublishListingUseCase, PauseListingUseCase,
+  ArchiveListingUseCase, RestoreListingUseCase, DeleteListingUseCase, UpdateListingUseCase
+} from './application/use-cases/owner-listing.use-cases';
+
 @Module({
-  controllers: [ListingController, InquiryController],
-  providers: [MarketplaceService],
+  controllers: [NewListingController, LegacyListingController, InquiryController],
+  providers: [
+    MarketplaceService,
+    CreateListingUseCase,
+    SearchListingsUseCase,
+    GetListingUseCase,
+    GetSavedListingsUseCase,
+    ToggleFavouriteUseCase,
+    GetMyListingsUseCase,
+    PublishListingUseCase,
+    PauseListingUseCase,
+    ArchiveListingUseCase,
+    RestoreListingUseCase,
+    DeleteListingUseCase,
+    UpdateListingUseCase,
+    { provide: 'IListingRepository', useClass: PrismaListingRepository },
+  ],
   exports: [MarketplaceService],
 })
 export class MarketplaceModule {}

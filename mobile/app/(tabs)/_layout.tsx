@@ -39,6 +39,13 @@ const UserIcon = ({ color, focused }: { color: string; focused: boolean }) => (
   </Svg>
 );
 
+const CalendarIcon = ({ color, focused }: { color: string; focused: boolean }) => (
+  <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={focused ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2z" />
+    <Path d="M16 2v4M8 2v4M3 10h18" />
+  </Svg>
+);
+
 export default function TabLayout(): JSX.Element {
   const { isAuthenticated, capabilities } = useAuthStore();
   
@@ -71,14 +78,12 @@ export default function TabLayout(): JSX.Element {
       />
 
       <Tabs.Screen
-        name="sell"
+        name="manage"
         options={{
-          title: 'Sell',
+          title: 'Manage',
           tabBarIcon: () => <PlusIcon color={Colors.neutral[0]} />,
           tabBarLabel: () => null, // Hide label for FAB
-          // Only redirect to sell flow if user is authenticated and has capability,
-          // otherwise we can handle the block inside the screen itself
-          href: isAuthenticated ? '/(tabs)/sell' : null, 
+          href: isAuthenticated ? '/(tabs)/manage' : null, 
         }}
       />
 
@@ -88,6 +93,15 @@ export default function TabLayout(): JSX.Element {
           title: 'Saved',
           tabBarIcon: ({ color, focused }) => <HeartIcon color={color} focused={focused} />,
           href: isAuthenticated ? '/(tabs)/saved' : null,
+        }}
+      />
+      
+      <Tabs.Screen
+        name="trips"
+        options={{
+          title: 'Trips',
+          tabBarIcon: ({ color, focused }) => <CalendarIcon color={color} focused={focused} />,
+          href: isAuthenticated ? '/(tabs)/trips' : null,
         }}
       />
 

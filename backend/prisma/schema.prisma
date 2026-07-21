@@ -132,30 +132,20 @@ enum VerificationStatus {
 
 // ─── Vehicle ───
 enum VehicleStatus {
+  DRAFT
   AVAILABLE
   UNAVAILABLE
-  MAINTENANCE
-  BOOKED
-  RESERVED
-  INACTIVE
-  SCRAPPED
+  UNDER_MAINTENANCE
+  RETIRED
+  ARCHIVED
 }
 
-enum VehicleCategory {
-  SMALL_CAR
-  LUXURY_CAR
-  SUV
-  PICKUP_TRUCK
-  VAN
-  MINIBUS
+enum VehicleType {
+  CAR
+  TRUCK
   BUS
-  CARGO_TRUCK
   MOTORCYCLE
-  TRIKE
-  CONSTRUCTION_EQUIPMENT
-  AGRICULTURAL_EQUIPMENT
   TRAILER
-  ELECTRIC_VEHICLE
   OTHER
 }
 
@@ -252,6 +242,20 @@ enum CancellationPolicy {
   STRICT
 }
 
+enum Currency {
+  TZS
+  KES
+  USD
+  EUR
+  OTHER
+}
+
+enum BlockType {
+  BOOKED
+  MAINTENANCE
+  OWNER_BLOCKED
+}
+
 // ─── Settings ───
 enum SettingValueType {
   STRING
@@ -265,49 +269,55 @@ enum SettingValueType {
 // ─────────────────────────────────────────────
 
 model User {
-  id                   String    @id @default(cuid())
-  email                String?   @unique
-  phoneNumber          String    @unique
-  passwordHash         String
-  isEmailVerified      Boolean   @default(false)
-  isPhoneVerified      Boolean   @default(false)
-  isActive             Boolean   @default(true)
-  lastLoginAt          DateTime?
-  failedLoginAttempts  Int       @default(0)
-  lockedUntil          DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  email               String?   @unique
+  phoneNumber         String    @unique
+  passwordHash        String
+  isEmailVerified     Boolean   @default(false)
+  isPhoneVerified     Boolean   @default(false)
+  isActive            Boolean   @default(true)
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   // Relations
-  roles             UserRoleRecord[]
-  capabilities      UserCapability[]
-  profile           Profile?
-  sessions          Session[]
-  refreshTokens     RefreshToken[]
-  otps              Otp[]
+  roles         UserRoleRecord[]
+  capabilities  UserCapability[]
+  profile       Profile?
+  sessions      Session[]
+  refreshTokens RefreshToken[]
+  otps          Otp[]
 
   // Workspace
-  ownedWorkspaces   Workspace[]       @relation("WorkspaceOwner")
+  ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
   workspaceMemberships WorkspaceMember[]
 
   // Organization
-  ownedOrganizations   Organization[]         @relation("OrganizationOwner")
-  organizationMembers  OrganizationMember[]
-  sentInvitations      OrganizationInvitation[] @relation("InvitationSender")
+  ownedOrganizations  Organization[]           @relation("OrganizationOwner")
+  organizationMembers OrganizationMember[]
+  sentInvitations     OrganizationInvitation[] @relation("InvitationSender")
 
   // Media
-  uploadedMedia     Media[]
+  uploadedMedia Media[]
 
   // Marketplace
-  savedVehicles      SavedVehicle[]
-  savedListings      SavedListing[]
-  contactIntents     ContactIntent[]
-  listings           Listing[]
-  inquiriesMade      Inquiry[]        @relation("InquirerUser")
-  inquiriesResponded Inquiry[]        @relation("ResponderUser")
+  savedVehicles  SavedVehicle[]
+  savedListings  SavedListing[]
+  contactIntents ContactIntent[]
+  listings       Listing[]
+  rentalRequests RentalRequest[]
+
+  inquiriesMade      Inquiry[] @relation("InquirerUser")
+  inquiriesResponded Inquiry[] @relation("ResponderUser")
 
   // Audit
-  auditLogs         AuditLog[]       @relation("AuditActor")
+  auditLogs AuditLog[] @relation("AuditActor")
+
+  // Rentals
+  rentalRequestsMade  RentalRequest[]       @relation("RentalCustomer")
+  rentalStatusChanges RentalStatusHistory[] @relation("StatusChanger")
 
   @@map("users")
 }
@@ -327,21 +337,21 @@ model UserRoleRecord {
 }
 
 model UserCapability {
-  id               String           @id @default(cuid())
-  userId           String
-  type             CapabilityType
-  status           CapabilityStatus @default(PENDING)
-  grantedAt        DateTime?
-  expiresAt        DateTime?
-  suspendedAt      DateTime?
-  suspendedReason  String?
-  revokedAt        DateTime?
-  revokedReason    String?
-  rejectedAt       DateTime?
-  rejectionReason  String?
-  requestedAt      DateTime         @default(now())
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id              String           @id @default(cuid())
+  userId          String
+  type            CapabilityType
+  status          CapabilityStatus @default(PENDING)
+  grantedAt       DateTime?
+  expiresAt       DateTime?
+  suspendedAt     DateTime?
+  suspendedReason String?
+  revokedAt       DateTime?
+  revokedReason   String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  requestedAt     DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -398,15 +408,15 @@ model Session {
 }
 
 model RefreshToken {
-  id              String    @id @default(cuid())
-  token           String    @unique
-  userId          String
-  sessionId       String
-  familyId        String
-  isRevoked       Boolean   @default(false)
-  expiresAt       DateTime
-  replacedByTokenId String? @unique
-  createdAt       DateTime  @default(now())
+  id                String   @id @default(cuid())
+  token             String   @unique
+  userId            String
+  sessionId         String
+  familyId          String
+  isRevoked         Boolean  @default(false)
+  expiresAt         DateTime
+  replacedByTokenId String?  @unique
+  createdAt         DateTime @default(now())
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -417,16 +427,16 @@ model RefreshToken {
 }
 
 model Otp {
-  id           String     @id @default(cuid())
-  phoneNumber  String
-  userId       String?
-  purpose      OtpPurpose
-  codeHash     String
-  expiresAt    DateTime
-  isVerified   Boolean    @default(false)
-  attempts     Int        @default(0)
-  lastSentAt   DateTime   @default(now())
-  createdAt    DateTime   @default(now())
+  id          String     @id @default(cuid())
+  phoneNumber String
+  userId      String?
+  purpose     OtpPurpose
+  codeHash    String
+  expiresAt   DateTime
+  isVerified  Boolean    @default(false)
+  attempts    Int        @default(0)
+  lastSentAt  DateTime   @default(now())
+  createdAt   DateTime   @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -458,13 +468,15 @@ model Workspace {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  owner        User                @relation("WorkspaceOwner", fields: [ownerId], references: [id])
-  organization Organization?       @relation(fields: [organizationId], references: [id])
-  members      WorkspaceMember[]
-  vehicles     Vehicle[]
-  listings     Listing[]
-  settings     WorkspaceSettings[]
-  verifications Verification[]     @relation("WorkspaceVerification")
+  owner          User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  organization   Organization?     @relation(fields: [organizationId], references: [id])
+  members        WorkspaceMember[]
+  vehicles       Vehicle[]
+  listings       Listing[]
+  rentalRequests RentalRequest[]
+
+  settings      WorkspaceSettings[]
+  verifications Verification[]      @relation("WorkspaceVerification")
 
   @@index([ownerId])
   @@index([type])
@@ -513,26 +525,26 @@ model WorkspaceSettings {
 // ─────────────────────────────────────────────
 
 model Organization {
-  id            String   @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String
-  slug          String   @unique
+  slug          String        @unique
   type          WorkspaceType
   ownerId       String
   description   String?
   website       String?
   logoUrl       String?
   coverImageUrl String?
-  isActive      Boolean  @default(true)
-  isVerified    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  isActive      Boolean       @default(true)
+  isVerified    Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  owner       User                     @relation("OrganizationOwner", fields: [ownerId], references: [id])
-  workspace   Workspace?
-  members     OrganizationMember[]
-  invitations OrganizationInvitation[]
-  settings    OrganizationSettings[]
-  verifications Verification[]         @relation("OrganizationVerification")
+  owner         User                     @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  workspace     Workspace?
+  members       OrganizationMember[]
+  invitations   OrganizationInvitation[]
+  settings      OrganizationSettings[]
+  verifications Verification[]           @relation("OrganizationVerification")
 
   @@index([ownerId])
   @@map("organizations")
@@ -559,18 +571,18 @@ model OrganizationMember {
 }
 
 model OrganizationInvitation {
-  id             String           @id @default(cuid())
+  id             String                 @id @default(cuid())
   organizationId String
-  token          String           @unique @default(cuid())
+  token          String                 @unique @default(cuid())
   invitedBy      String
   inviteeEmail   String?
   inviteePhone   String?
   role           OrganizationMemberRole
-  status         InvitationStatus @default(PENDING)
+  status         InvitationStatus       @default(PENDING)
   expiresAt      DateTime
   respondedAt    DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inviter      User         @relation("InvitationSender", fields: [invitedBy], references: [id])
@@ -607,15 +619,15 @@ model Media {
   id              String    @id @default(cuid())
   uploaderId      String
   // Context tagging (replaces MediaPurpose enum — no migrations needed for new consumers)
-  entityType      String    // 'User' | 'Organization' | 'Workspace' | 'Vehicle' | 'Verification' | ...
+  entityType      String // 'User' | 'Organization' | 'Workspace' | 'Vehicle' | 'Verification' | ...
   entityId        String
-  subType         String    // 'AVATAR' | 'LOGO' | 'COVER' | 'EXTERIOR_FRONT' | 'LOGBOOK' | ...
+  subType         String // 'AVATAR' | 'LOGO' | 'COVER' | 'EXTERIOR_FRONT' | 'LOGBOOK' | ...
   // File metadata
   filename        String
   originalName    String
-  mimeType        String    // determines PHOTO / VIDEO / DOCUMENT classification
+  mimeType        String // determines PHOTO / VIDEO / DOCUMENT classification
   sizeBytes       Int
-  storageKey      String    // path/key in storage provider
+  storageKey      String // path/key in storage provider
   publicUrl       String
   isPublic        Boolean   @default(true)
   // Image metadata
@@ -633,7 +645,7 @@ model Media {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  uploader     User           @relation(fields: [uploaderId], references: [id])
+  uploader      User           @relation(fields: [uploaderId], references: [id])
   vehicleImages VehicleImage[]
 
   @@index([uploaderId])
@@ -647,20 +659,20 @@ model Media {
 // ─────────────────────────────────────────────
 
 model Verification {
-  id              String                  @id @default(cuid())
-  subjectType     VerificationSubjectType
-  subjectId       String
-  type            VerificationType
-  status          VerificationStatus      @default(PENDING)
+  id               String                  @id @default(cuid())
+  subjectType      VerificationSubjectType
+  subjectId        String
+  type             VerificationType
+  status           VerificationStatus      @default(PENDING)
   documentMediaIds String[]
-  expiresAt       DateTime?
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  reviewNote      String?
-  rejectionReason String?
-  requestedAt     DateTime                @default(now())
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  expiresAt        DateTime?
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+  rejectionReason  String?
+  requestedAt      DateTime                @default(now())
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
 
   // Optional FK relations for direct lookups
   organization Organization? @relation("OrganizationVerification", fields: [subjectId], references: [id], map: "verification_organization_fk")
@@ -676,62 +688,73 @@ model Verification {
 // ─────────────────────────────────────────────
 
 model Vehicle {
-  id                   String          @id @default(cuid())
+  id                    String           @id @default(cuid())
   // Ownership — workspace is the single ownership primitive
-  workspaceId          String
+  workspaceId           String
   // Classification
-  category             VehicleCategory
-  bodyType             BodyType
+  type                  VehicleType
+  bodyType              BodyType
   // Identity
-  make                 String
-  model                String
-  year                 Int
-  trim                 String?
+  make                  String
+  model                 String
+  year                  Int
+  trim                  String?
   // Technical specs
-  fuelType             FuelType
-  transmission         Transmission
-  drivetrain           Drivetrain
-  engineCapacity       Int?            // cc
-  doors                Int?
-  seats                Int?
+  fuelType              FuelType
+  transmission          Transmission
+  drivetrain            Drivetrain
+  engineCapacity        Int? // cc
+  engineNumber          String?          @unique
+  horsepower            Int?
+  torque                Int?
+  fuelTankCapacity      Int? // liters
+  groundClearance       Int? // mm
+  wheelbase             Int? // mm
+  doors                 Int?
+  seats                 Int?
   // Condition & mileage
-  condition            VehicleCondition
-  mileage              Int             // kilometres
+  condition             VehicleCondition
+  mileage               Int // kilometres
   // Appearance
-  exteriorColor        String?
-  interiorColor        String?
+  exteriorColor         String?
+  interiorColor         String?
   // Legal identifiers
-  vin                  String?         @unique
-  registrationNumber   String?         @unique
+  vin                   String?          @unique
+  registrationNumber    String?          @unique
   // Features (comfort, safety, technology)
-  features             String[]
+  features              String[]
   // Description
-  description          String?
+  description           String?
+  // Media Preparation
+  primaryImageId        String?
   // Asset state (separate from listing state)
-  status               VehicleStatus   @default(AVAILABLE)
+  status                VehicleStatus    @default(DRAFT)
   // Admin verification
-  isVerified           Boolean         @default(false)
-  verifiedAt           DateTime?
-  verifiedBy           String?
+  isVerified            Boolean          @default(false)
+  verifiedAt            DateTime?
+  verifiedBy            String?
   // ─── Tracking Foundation (fields only — no implementation yet) ───
-  trackingEnabled      Boolean         @default(false)
-  trackingStatus       TrackingStatus?
-  trackingProvider     String?         // 'CELLOCATOR' | 'TELTONIKA' | 'TRAMIGO' | ...
-  trackingDeviceId     String?
-  lastKnownLatitude    Float?
-  lastKnownLongitude   Float?
-  lastKnownAddress     String?
+  trackingEnabled       Boolean          @default(false)
+  trackingStatus        TrackingStatus?
+  trackingProvider      String? // 'CELLOCATOR' | 'TELTONIKA' | 'TRAMIGO' | ...
+  trackingDeviceId      String?
+  lastKnownLatitude     Float?
+  lastKnownLongitude    Float?
+  lastKnownAddress      String?
   lastLocationUpdatedAt DateTime?
-  geofenceEnabled      Boolean         @default(false)
+  geofenceEnabled       Boolean          @default(false)
   // Audit
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
-  workspace    Workspace      @relation(fields: [workspaceId], references: [id])
-  images       VehicleImage[]
-  listings     Listing[]
-  savedBy      SavedVehicle[]
-  contactIntents ContactIntent[]
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id])
+  images         VehicleImage[]
+  listings       Listing[]
+  rentalRequests RentalRequest[]
+
+  savedBy            SavedVehicle[]
+  contactIntents     ContactIntent[]
+  availabilityBlocks VehicleAvailabilityBlock[]
 
   // ─── Reserved future relations (implemented in future sprints) ───
   // maintenanceRecords VehicleMaintenanceRecord[]
@@ -743,7 +766,7 @@ model Vehicle {
   // serviceRecords     VehicleServiceRecord[]
 
   @@index([workspaceId])
-  @@index([category])
+  @@index([type])
   @@index([make, model])
   @@index([make, model, year])
   @@index([status])
@@ -766,7 +789,23 @@ model VehicleImage {
 
   @@unique([vehicleId, mediaId])
   @@index([vehicleId])
+  @@index([mediaId])
   @@map("vehicle_images")
+}
+
+model VehicleAvailabilityBlock {
+  id        String    @id @default(cuid())
+  vehicleId String
+  startDate DateTime
+  endDate   DateTime
+  type      BlockType
+  reason    String?
+  createdAt DateTime  @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, startDate, endDate])
+  @@map("vehicle_availability_blocks")
 }
 
 // ─────────────────────────────────────────────
@@ -781,8 +820,8 @@ model Listing {
   type            ListingType
   title           String
   description     String?
-  pricingCurrency String        @default("KES")
-  askingPrice     Decimal       @db.Decimal(12, 2)
+  currency        Currency      @default(TZS)
+  askingPrice     Decimal?      @db.Decimal(12, 2)
   negotiable      Boolean       @default(true)
   status          ListingStatus @default(DRAFT)
   publishedAt     DateTime?
@@ -799,16 +838,18 @@ model Listing {
   country         String
   searchVector    Json?
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  vehicle         Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  lister          User          @relation(fields: [listerId], references: [id], onDelete: Cascade)
-  inquiries       Inquiry[]
-  savedBy         SavedListing[]
-  rentalConfig    ListingRentalConfig?
-  contactIntents  ContactIntent[]
+  vehicle        Vehicle              @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lister         User                 @relation(fields: [listerId], references: [id], onDelete: Cascade)
+  inquiries      Inquiry[]
+  savedBy        SavedListing[]
+  rentalConfig   ListingRentalConfig?
+  contactIntents ContactIntent[]
+  rentalRequests RentalRequest[]
 
   @@index([vehicleId])
   @@index([workspaceId])
@@ -817,21 +858,21 @@ model Listing {
 }
 
 model Inquiry {
-  id              String        @id @default(cuid())
-  listingId       String
-  inquirerId      String
-  status          InquiryStatus @default(PENDING)
-  message         String
-  offeredPrice    Decimal?      @db.Decimal(12, 2)
-  offerCurrency   String?
-  respondedAt     DateTime?
-  respondedById   String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  listingId     String
+  inquirerId    String
+  status        InquiryStatus @default(PENDING)
+  message       String
+  offeredPrice  Decimal?      @db.Decimal(12, 2)
+  offerCurrency String?
+  respondedAt   DateTime?
+  respondedById String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  listing         Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  inquirer        User          @relation("InquirerUser", fields: [inquirerId], references: [id], onDelete: Cascade)
-  respondedBy     User?         @relation("ResponderUser", fields: [respondedById], references: [id])
+  listing     Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  inquirer    User    @relation("InquirerUser", fields: [inquirerId], references: [id], onDelete: Cascade)
+  respondedBy User?   @relation("ResponderUser", fields: [respondedById], references: [id])
 
   @@index([listingId])
   @@index([inquirerId])
@@ -839,51 +880,51 @@ model Inquiry {
 }
 
 model SavedListing {
-  id              String        @id @default(cuid())
-  userId          String
-  listingId       String
-  savedAt         DateTime      @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  savedAt   DateTime @default(now())
 
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  listing         Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@unique([userId, listingId])
   @@map("saved_listings")
 }
 
 model ListingRentalConfig {
-  id                  String             @id @default(cuid())
-  listingId           String             @unique
+  id                 String             @id @default(cuid())
+  listingId          String             @unique
   // Rates (KES)
-  dailyRate           Decimal            @db.Decimal(12, 2)
-  weeklyRate          Decimal?           @db.Decimal(12, 2)
-  monthlyRate         Decimal?           @db.Decimal(12, 2)
+  dailyRate          Decimal            @db.Decimal(12, 2)
+  weeklyRate         Decimal?           @db.Decimal(12, 2)
+  monthlyRate        Decimal?           @db.Decimal(12, 2)
   // Deposit
-  depositRequired     Boolean            @default(false)
-  depositAmount       Decimal?           @db.Decimal(12, 2)
+  depositRequired    Boolean            @default(false)
+  depositAmount      Decimal?           @db.Decimal(12, 2)
   // Driver
-  driverIncluded      Boolean            @default(false)
-  driverDailyRate     Decimal?           @db.Decimal(12, 2)
+  driverIncluded     Boolean            @default(false)
+  driverDailyRate    Decimal?           @db.Decimal(12, 2)
   // Fuel
-  fuelPolicy          FuelPolicy         @default(FULL_TO_FULL)
+  fuelPolicy         FuelPolicy         @default(FULL_TO_FULL)
   // Duration constraints
-  mileageLimitPerDay  Int?               // km; null = unlimited
-  minimumRentalDays   Int                @default(1)
-  maximumRentalDays   Int?
-  advanceBookingDays  Int                @default(1)
+  mileageLimitPerDay Int? // km; null = unlimited
+  minimumRentalDays  Int                @default(1)
+  maximumRentalDays  Int?
+  advanceBookingDays Int                @default(1)
   // Pickup / delivery
-  pickupCounty        String
-  pickupCity          String?
-  pickupLatitude      Float?
-  pickupLongitude     Float?
-  deliveryAvailable   Boolean            @default(false)
-  deliveryRadius      Int?               // km
-  deliveryFee         Decimal?           @db.Decimal(12, 2)
+  pickupCounty       String
+  pickupCity         String?
+  pickupLatitude     Float?
+  pickupLongitude    Float?
+  deliveryAvailable  Boolean            @default(false)
+  deliveryRadius     Int? // km
+  deliveryFee        Decimal?           @db.Decimal(12, 2)
   // Booking policy
-  instantBooking      Boolean            @default(false)
-  cancellationPolicy  CancellationPolicy @default(MODERATE)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  instantBooking     Boolean            @default(false)
+  cancellationPolicy CancellationPolicy @default(MODERATE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
@@ -929,9 +970,9 @@ model ContactIntent {
 
 model AuditLog {
   id          String   @id @default(cuid())
-  action      String   // e.g. 'vehicle.listed', 'capability.granted', 'listing.published'
+  action      String // e.g. 'vehicle.listed', 'capability.granted', 'listing.published'
   actorId     String
-  subjectType String   // e.g. 'Vehicle', 'Listing', 'UserCapability'
+  subjectType String // e.g. 'Vehicle', 'Listing', 'UserCapability'
   subjectId   String
   metadata    Json?
   ipAddress   String?
@@ -945,4 +986,76 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// RENTAL DOMAIN (Sprint 5)
+// ─────────────────────────────────────────────
+
+enum RentalStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
+  READY_FOR_PICKUP
+  ACTIVE
+  COMPLETED
+}
+
+model RentalRequest {
+  id          String       @id @default(cuid())
+  customerId  String
+  workspaceId String
+  vehicleId   String
+  listingId   String
+  status      RentalStatus @default(REQUESTED)
+
+  // Dates
+  startDate DateTime
+  endDate   DateTime
+
+  // Pricing snapshot
+  dailyRate     Decimal  @db.Decimal(12, 2)
+  currency      Currency @default(TZS)
+  totalAmount   Decimal  @db.Decimal(12, 2)
+  depositAmount Decimal? @db.Decimal(12, 2)
+
+  // Notes
+  pickupNotes     String?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer      User                  @relation("RentalCustomer", fields: [customerId], references: [id])
+  workspace     Workspace             @relation(fields: [workspaceId], references: [id])
+  vehicle       Vehicle               @relation(fields: [vehicleId], references: [id])
+  listing       Listing               @relation(fields: [listingId], references: [id])
+  statusHistory RentalStatusHistory[]
+  User          User?                 @relation(fields: [userId], references: [id])
+  userId        String?
+
+  @@index([customerId])
+  @@index([workspaceId])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("rental_requests")
+}
+
+model RentalStatusHistory {
+  id              String       @id @default(cuid())
+  rentalRequestId String
+  status          RentalStatus
+  changedById     String
+  reason          String?
+  createdAt       DateTime     @default(now())
+
+  rentalRequest RentalRequest @relation(fields: [rentalRequestId], references: [id], onDelete: Cascade)
+  changedBy     User          @relation("StatusChanger", fields: [changedById], references: [id])
+
+  @@index([rentalRequestId])
+  @@index([createdAt])
+  @@map("rental_status_history")
 }

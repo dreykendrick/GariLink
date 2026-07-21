@@ -231,3 +231,29 @@ export interface ApiError {
   path: string;
   timestamp: string;
 }
+
+// ─── Rental Request Types ────────────────────────────────────────────────
+
+export type RentalRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'READY_FOR_PICKUP' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface RentalRequest {
+  id: string;
+  listingId: string;
+  customerId: string;
+  ownerId: string;
+  startDate: string;
+  endDate: string;
+  status: RentalRequestStatus;
+  pickupNotes?: string;
+  listing?: Listing;
+  customer?: Partial<UserProfile>; // Usually customer profile
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRentalRequestInput {
+  listingId: string;
+  startDate: string;
+  endDate: string;
+  pickupNotes?: string;
+}

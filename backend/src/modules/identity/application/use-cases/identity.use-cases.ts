@@ -67,7 +67,7 @@ import {
 
 // ─── Shared response types ────────────────────────────────────────────────────
 
-interface AuthResponse {
+export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   user: {

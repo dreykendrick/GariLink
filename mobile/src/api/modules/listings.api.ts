@@ -57,6 +57,15 @@ export const listingsApi = {
   publish: (id: string) =>
     api.post<Listing>(`/listings/${id}/publish`),
 
+  pause: (id: string) =>
+    api.post<Listing>(`/listings/${id}/pause`),
+
+  archive: (id: string) =>
+    api.post<Listing>(`/listings/${id}/archive`),
+
+  restore: (id: string) =>
+    api.post<Listing>(`/listings/${id}/restore`),
+
   updateStatus: (id: string, status: string) =>
     api.patch<Listing>(`/listings/${id}/status`, { status }),
 

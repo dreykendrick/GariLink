@@ -21,6 +21,7 @@ import { OrganizationModule } from './modules/organization/organization.module';
 import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { RentalModule } from './modules/rental/rental.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     OrganizationModule,
     VehicleModule,
     MarketplaceModule,
+    RentalModule,
 
     // Stubs — future sprints
     NotificationsModule,
