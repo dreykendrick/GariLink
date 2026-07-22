@@ -13,6 +13,16 @@ buildscript {
 }
 
 allprojects {
+  if (project.name == "react-native-reanimated") {
+    project.buildDir = "E:/b/reanimated"
+  }
+
+  afterEvaluate { proj ->
+    if (proj.name == "react-native-reanimated" && proj.hasProperty("android")) {
+      proj.android.externalNativeBuild.cmake.buildStagingDirectory = proj.file("E:/b/reanimated-cxx")
+    }
+  }
+
   repositories {
     google()
     mavenCentral()
