@@ -39,7 +39,7 @@ export default function LoginScreen(): JSX.Element {
   const onSubmit = async (data: FormData): Promise<void> => {
     try {
       await login(data.identifier, data.password);
-      router.replace('/(tabs)');
+      router.replace('/home');
     } catch (error) {
       const msg = extractApiError(error);
       Alert.alert('Sign In Failed', msg);

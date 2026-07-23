@@ -9,6 +9,17 @@ import { useAuthStore } from '../src/stores/auth.store';
 import { Colors } from '../src/theme/tokens';
 import { View, Text } from 'react-native';
 import { useOffline } from '../src/hooks/useOffline';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Prevent splash screen from auto-hiding
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -45,12 +56,25 @@ export default function RootLayout(): JSX.Element | null {
   const { hydrate, isHydrated } = useAuthStore();
   const { isOffline } = useOffline();
 
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
 
-  if (!isHydrated) {
-    // Show splash or loading while hydrating auth state
+  useEffect(() => {
+    if (isHydrated && (fontsLoaded || fontError)) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isHydrated, fontsLoaded, fontError]);
+
+  if (!isHydrated || (!fontsLoaded && !fontError)) {
+    // Show splash or loading while hydrating auth state and loading fonts
     return null;
   }
 

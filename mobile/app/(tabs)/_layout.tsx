@@ -62,7 +62,7 @@ export default function TabLayout(): JSX.Element {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => <HomeIcon color={color} focused={focused} />,
@@ -83,7 +83,7 @@ export default function TabLayout(): JSX.Element {
           title: 'Manage',
           tabBarIcon: () => <PlusIcon color={Colors.neutral[0]} />,
           tabBarLabel: () => null, // Hide label for FAB
-          href: isAuthenticated ? '/(tabs)/manage' : null, 
+          href: isAuthenticated ? '/manage' : null, 
         }}
       />
 
@@ -92,7 +92,7 @@ export default function TabLayout(): JSX.Element {
         options={{
           title: 'Saved',
           tabBarIcon: ({ color, focused }) => <HeartIcon color={color} focused={focused} />,
-          href: isAuthenticated ? '/(tabs)/saved' : null,
+          href: isAuthenticated ? '/saved' : null,
         }}
       />
       
@@ -101,7 +101,7 @@ export default function TabLayout(): JSX.Element {
         options={{
           title: 'Trips',
           tabBarIcon: ({ color, focused }) => <CalendarIcon color={color} focused={focused} />,
-          href: isAuthenticated ? '/(tabs)/trips' : null,
+          href: isAuthenticated ? '/trips' : null,
         }}
       />
 

@@ -29,7 +29,7 @@ export default function BookRentalScreen() {
       pickupNotes,
     }, {
       onSuccess: () => {
-        router.replace('/(tabs)/trips');
+        router.replace('/trips');
       }
     });
   };

@@ -35,28 +35,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isHydrated: false,
 
   hydrate: async () => {
-    const isAuth = await tokenStorage.isAuthenticated();
-    if (isAuth) {
-      try {
-        const me = await authApi.getMe();
-        set({
-          user: {
-            id: me.id,
-            phoneNumber: me.phoneNumber,
-            email: me.email,
-            roles: me.roles,
-            isPhoneVerified: me.isPhoneVerified,
-            isEmailVerified: me.isEmailVerified,
-          },
-          profile: me.profile,
-          capabilities: me.capabilities,
-          isAuthenticated: true,
-        });
-      } catch {
-        await tokenStorage.clearTokens();
+    try {
+      const isAuth = await tokenStorage.isAuthenticated();
+      if (isAuth) {
+        try {
+          const me = await authApi.getMe();
+          set({
+            user: {
+              id: me.id,
+              phoneNumber: me.phoneNumber,
+              email: me.email,
+              roles: me.roles,
+              isPhoneVerified: me.isPhoneVerified,
+              isEmailVerified: me.isEmailVerified,
+            },
+            profile: me.profile,
+            capabilities: me.capabilities,
+            isAuthenticated: true,
+          });
+        } catch {
+          await tokenStorage.clearTokens();
+        }
       }
+    } catch (e) {
+      console.error('Hydration failed:', e);
+      try {
+        await tokenStorage.clearTokens();
+      } catch {}
+    } finally {
+      set({ isHydrated: true });
     }
-    set({ isHydrated: true });
   },
 
   login: async (identifier, password) => {

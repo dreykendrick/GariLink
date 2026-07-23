@@ -4,6 +4,6 @@ import { useAuthStore } from '../src/stores/auth.store';
 export default function Index(): JSX.Element {
   const { isAuthenticated } = useAuthStore();
   return (
-    <Redirect href={isAuthenticated ? '/(tabs)' : '/(auth)/welcome'} />
+    <Redirect href={isAuthenticated ? '/home' : '/welcome'} />
   );
 }

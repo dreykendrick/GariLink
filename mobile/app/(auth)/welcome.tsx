@@ -58,7 +58,7 @@ export default function WelcomeScreen(): JSX.Element {
 
         <Pressable
           style={styles.browseButton}
-          onPress={() => router.push('/(tabs)')}
+          onPress={() => router.push('/home')}
         >
           <Text style={styles.browseButtonText}>Browse without signing in →</Text>
         </Pressable>

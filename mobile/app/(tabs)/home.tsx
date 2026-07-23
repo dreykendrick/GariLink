@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Typography, Spacing, Layout } from '../../src/theme/tokens';
+import { Colors, Typography, Spacing, Layout, BorderRadius } from '../../src/theme/tokens';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { Svg, Path } from 'react-native-svg';
 import { useSearchListings, useToggleFavourite } from '../../src/modules/marketplace/application/hooks';
@@ -76,7 +76,7 @@ export default function HomeScreen() {
         <TouchableOpacity 
           style={styles.searchBar}
           activeOpacity={0.8}
-          onPress={() => router.push('/(tabs)/explore')}
+          onPress={() => router.push('/explore')}
         >
           <SearchIcon color={Colors.dark.textMuted} />
           <Text style={styles.searchPlaceholder}>Search for cars, parts, services...</Text>

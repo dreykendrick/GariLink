@@ -157,3 +157,8 @@ export const Breakpoints = {
   md: 768,
   lg: 1024,
 } as const;
+
+export const Layout = {
+  screenPadding: Spacing.base,
+  borderRadius: BorderRadius,
+} as const;
