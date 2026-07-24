@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../shared/widgets/app_button.dart';
 import '../../shared/widgets/app_card.dart';
 
@@ -33,13 +34,13 @@ class WelcomePage extends StatelessWidget {
               const SizedBox(height: 100),
               AppButton(
                 text: 'Sign In',
-                onPressed: () {}, 
+                onPressed: () => context.push('/login'), 
               ),
               const SizedBox(height: 12),
               AppButton(
                 text: 'Browse without signing in',
                 variant: AppButtonVariant.secondary,
-                onPressed: () {}, 
+                onPressed: () => context.go('/home'), 
               ),
             ],
           ),
@@ -114,15 +115,3 @@ class TripsPage extends StatelessWidget {
   }
 }
 
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Profile Screen Placeholder'),
-      ),
-    );
-  }
-}

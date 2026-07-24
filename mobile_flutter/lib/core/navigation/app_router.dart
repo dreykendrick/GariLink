@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'placeholder_pages.dart';
-
-// Dummy auth state provider for Phase A compilation.
-// This will be replaced with the real auth notifier in Phase B.
-final isAuthenticatedProvider = StateProvider<bool>((ref) => false);
+import '../../features/authentication/presentation/providers/auth_provider.dart';
+import '../../features/authentication/presentation/pages/login_page.dart';
+import '../../features/authentication/presentation/pages/register_page.dart';
+import '../../features/authentication/presentation/pages/verify_phone_page.dart';
+import '../../features/profile/presentation/pages/profile_page.dart';
 
 final goRouterRootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final goRouterShellKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final isAuthenticated = ref.watch(isAuthenticatedProvider);
+  final authState = ref.watch(authStateProvider);
+  final isAuthenticated = authState.isAuthenticated;
 
   return GoRouter(
     navigatorKey: goRouterRootKey,
@@ -24,7 +26,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Protected routes list
       final isProtectedRoute = state.matchedLocation == '/manage' ||
           state.matchedLocation == '/saved' ||
-          state.matchedLocation == '/trips';
+          state.matchedLocation == '/trips' ||
+          state.matchedLocation == '/verify-phone';
 
       if (!isAuthenticated && isProtectedRoute) {
         return '/welcome';
@@ -45,12 +48,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         parentNavigatorKey: goRouterRootKey,
-        builder: (context, state) => const Scaffold(body: Center(child: Text('Login'))),
+        builder: (context, state) => const LoginPage(),
       ),
       GoRoute(
         path: '/register',
         parentNavigatorKey: goRouterRootKey,
-        builder: (context, state) => const Scaffold(body: Center(child: Text('Register'))),
+        builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: '/verify-phone',
+        parentNavigatorKey: goRouterRootKey,
+        builder: (context, state) => const VerifyPhonePage(),
       ),
       ShellRoute(
         navigatorKey: goRouterShellKey,
@@ -111,7 +119,8 @@ class ScaffoldWithNavBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
-    final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final authState = ref.watch(authStateProvider);
+    final isAuthenticated = authState.isAuthenticated;
 
     int getSelectedIndex() {
       switch (location) {
