@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/tokens.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/spacing.dart';
+import '../../../../core/theme/radius.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
@@ -41,7 +44,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: AppColors.error[500],
+            backgroundColor: GariLinkColors.error,
           ),
         );
       }
@@ -54,84 +57,147 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF070F1A) : GariLinkColors.background,
       appBar: AppBar(
-        title: const Text('Sign In'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? Colors.white : GariLinkColors.textPrimary,
+          ),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xx2l),
+            padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.xxl),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Welcome back',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.darkText : AppColors.neutral[900],
+                    'Welcome Back',
+                    style: GoogleFonts.inter(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : GariLinkColors.textPrimary,
+                      letterSpacing: -1.0,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: GariLinkSpacing.xs),
                   Text(
-                    'Sign in to your GariLink account',
-                    style: TextStyle(
+                    'Sign in to continue',
+                    style: GoogleFonts.inter(
                       fontSize: 16,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.neutral[500],
+                      fontWeight: FontWeight.w500,
+                      color: GariLinkColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xx2l),
+                  const SizedBox(height: GariLinkSpacing.xxxl),
                   AppTextField(
-                    labelText: 'Phone number or email',
-                    hintText: '+254712345678 or email@example.com',
+                    labelText: 'Email or Phone',
+                    hintText: 'Enter email or phone',
                     controller: _identifierController,
-                    prefixIcon: Icons.email_outlined,
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
-                        return 'Phone number or email is required';
+                        return 'Please enter your email or phone';
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: GariLinkSpacing.lg),
                   AppTextField(
                     labelText: 'Password',
                     hintText: 'Enter your password',
                     controller: _passwordController,
-                    prefixIcon: Icons.lock_outline,
                     isPassword: true,
                     validator: (val) {
                       if (val == null || val.isEmpty) {
-                        return 'Password is required';
+                        return 'Please enter your password';
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: AppSpacing.xx2l),
+                  const SizedBox(height: GariLinkSpacing.md),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => context.push('/forgot-password'),
+                      child: Text(
+                        'Forgot Password?',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: GariLinkColors.accent,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: GariLinkSpacing.xxxl),
                   AppButton(
-                    text: 'Sign In',
+                    text: 'Login',
                     isLoading: authState.isLoading,
                     onPressed: _submit,
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: GariLinkSpacing.xxl),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: isDark ? const Color(0xFF1E2D4A) : GariLinkColors.border,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.md),
+                        child: Text(
+                          'or continue with',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: GariLinkColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: isDark ? const Color(0xFF1E2D4A) : GariLinkColors.border,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: GariLinkSpacing.xxl),
+                  _socialButton(
+                    text: 'Continue with Google',
+                    icon: Icons.g_mobiledata, // We can style this or show a placeholder
+                    onTap: () {},
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: GariLinkSpacing.md),
+                  _socialButton(
+                    text: 'Continue with Apple',
+                    icon: Icons.apple,
+                    onTap: () {},
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: GariLinkSpacing.xxxxl),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         "Don't have an account? ",
-                        style: TextStyle(
-                          color: isDark ? AppColors.darkTextMuted : AppColors.neutral[600],
+                        style: GoogleFonts.inter(
+                          color: GariLinkColors.textSecondary,
                         ),
                       ),
                       GestureDetector(
                         onTap: () => context.push('/register'),
                         child: Text(
                           'Register',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                          style: GoogleFonts.inter(
+                            color: GariLinkColors.accent,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -141,6 +207,35 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _socialButton({
+    required String text,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 24, color: isDark ? Colors.white : GariLinkColors.textPrimary),
+      label: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : GariLinkColors.textPrimary,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: GariLinkSpacing.md),
+        side: BorderSide(
+          color: isDark ? const Color(0xFF1E2D4A) : GariLinkColors.border,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: GariLinkRadius.buttonBorderRadius,
         ),
       ),
     );

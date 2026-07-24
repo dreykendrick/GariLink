@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/spacing.dart';
 
 class StatusBadge extends StatelessWidget {
   final String status;
@@ -20,18 +21,18 @@ class StatusBadge extends StatelessWidget {
         case 'APPROVED':
         case 'COMPLETED':
         case 'AVAILABLE':
-          return isDark ? AppColors.success[700]!.withOpacity(0.2) : AppColors.success[50]!;
+          return GariLinkColors.success.withOpacity(0.12);
         case 'PENDING':
         case 'DRAFT':
         case 'PAUSED':
-          return isDark ? AppColors.warning[700]!.withOpacity(0.2) : AppColors.warning[50]!;
+          return GariLinkColors.warning.withOpacity(0.12);
         case 'REJECTED':
         case 'CANCELLED':
         case 'REVOKED':
         case 'SUSPENDED':
-          return isDark ? AppColors.error[700]!.withOpacity(0.2) : AppColors.error[50]!;
+          return GariLinkColors.error.withOpacity(0.12);
         default:
-          return isDark ? AppColors.neutral[800]! : AppColors.neutral[50]!;
+          return isDark ? const Color(0xFF1E2D4A) : GariLinkColors.borderLight;
       }
     }
 
@@ -41,25 +42,28 @@ class StatusBadge extends StatelessWidget {
         case 'APPROVED':
         case 'COMPLETED':
         case 'AVAILABLE':
-          return AppColors.success[500]!;
+          return GariLinkColors.success;
         case 'PENDING':
         case 'DRAFT':
         case 'PAUSED':
-          return AppColors.warning[500]!;
+          return GariLinkColors.warning;
         case 'REJECTED':
         case 'CANCELLED':
         case 'REVOKED':
         case 'SUSPENDED':
-          return AppColors.error[500]!;
+          return GariLinkColors.error;
         default:
-          return isDark ? AppColors.darkTextMuted : AppColors.neutral[600]!;
+          return isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary;
       }
     }
 
     final formattedText = status.replaceAll('_', ' ').toUpperCase();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: GariLinkSpacing.sm,
+        vertical: GariLinkSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: getBgColor(status),
         borderRadius: BorderRadius.circular(12),

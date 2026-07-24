@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
 
 class Avatar extends StatelessWidget {
   final String? imageUrl;
@@ -18,8 +18,8 @@ class Avatar extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final fallbackBg = isDark ? AppColors.neutral[800]! : AppColors.primary[50]!;
-    final fallbackText = isDark ? AppColors.darkTextMuted : AppColors.primary[700]!;
+    final fallbackBg = isDark ? const Color(0xFF1E2D4A) : GariLinkColors.borderLight;
+    final fallbackText = isDark ? GariLinkColors.textMuted : GariLinkColors.primary;
 
     Widget? getForeground() {
       if (imageUrl != null && imageUrl!.isNotEmpty) {

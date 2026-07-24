@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/tokens.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/spacing.dart';
+import '../../../../core/theme/radius.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
@@ -49,7 +52,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: AppColors.error[500],
+            backgroundColor: GariLinkColors.error,
           ),
         );
       }
@@ -62,35 +65,46 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF070F1A) : GariLinkColors.background,
       appBar: AppBar(
-        title: const Text('Register'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? Colors.white : GariLinkColors.textPrimary,
+          ),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.xxl),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Create account',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.darkText : AppColors.neutral[900],
+                    'Create Account',
+                    style: GoogleFonts.inter(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : GariLinkColors.textPrimary,
+                      letterSpacing: -1.0,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: GariLinkSpacing.xs),
                   Text(
                     'Join GariLink today',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.neutral[500],
+                      fontWeight: FontWeight.w500,
+                      color: GariLinkColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: GariLinkSpacing.xxl),
                   Row(
                     children: [
                       Expanded(
@@ -100,7 +114,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           controller: _firstNameController,
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.base),
+                      const SizedBox(width: GariLinkSpacing.md),
                       Expanded(
                         child: AppTextField(
                           labelText: 'Last name',
@@ -110,12 +124,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.base),
+                  const SizedBox(height: GariLinkSpacing.md),
                   AppTextField(
                     labelText: 'Phone number *',
                     hintText: '+254712345678',
                     controller: _phoneController,
-                    prefixIcon: Icons.phone_android_outlined,
                     keyboardType: TextInputType.phone,
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -128,12 +141,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: AppSpacing.base),
+                  const SizedBox(height: GariLinkSpacing.md),
                   AppTextField(
                     labelText: 'Password *',
-                    hintText: 'Min 8 chars, uppercase, lowercase, number',
+                    hintText: 'Create strong password',
                     controller: _passwordController,
-                    prefixIcon: Icons.lock_outline,
                     isPassword: true,
                     validator: (val) {
                       if (val == null || val.isEmpty) {
@@ -149,12 +161,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: AppSpacing.base),
+                  const SizedBox(height: GariLinkSpacing.md),
                   AppTextField(
                     labelText: 'Confirm password *',
                     hintText: 'Repeat password',
                     controller: _confirmPasswordController,
-                    prefixIcon: Icons.lock_outline,
                     isPassword: true,
                     validator: (val) {
                       if (val == null || val.isEmpty) {
@@ -166,38 +177,29 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: GariLinkSpacing.xxl),
                   AppButton(
-                    text: 'Create Account',
+                    text: 'Register',
                     isLoading: authState.isLoading,
                     onPressed: _submit,
                   ),
-                  const SizedBox(height: AppSpacing.base),
-                  Text(
-                    'By registering, you agree to our Terms of Service and Privacy Policy.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.neutral[500],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: GariLinkSpacing.xl),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Already have an account? ',
-                        style: TextStyle(
-                          color: isDark ? AppColors.darkTextMuted : AppColors.neutral[600],
+                        style: GoogleFonts.inter(
+                          color: GariLinkColors.textSecondary,
                         ),
                       ),
                       GestureDetector(
                         onTap: () => context.pop(),
                         child: Text(
                           'Sign In',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                          style: GoogleFonts.inter(
+                            color: GariLinkColors.accent,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),

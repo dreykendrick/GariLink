@@ -24,6 +24,12 @@ abstract class AuthRepository {
     required String purpose,
   });
   Future<UserProfileEntity> updateProfile(Map<String, dynamic> data);
+  Future<void> forgotPassword(String phoneNumber);
+  Future<void> resetPassword({
+    required String phoneNumber,
+    required String otpCode,
+    required String newPassword,
+  });
 }
 
 class AuthResponse {
@@ -130,5 +136,31 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<UserProfileEntity> updateProfile(Map<String, dynamic> data) async {
     final response = await _apiClient.post<Map<String, dynamic>>('/profile', data: data);
     return UserProfileModel.fromJson(response);
+  }
+
+  @override
+  Future<void> forgotPassword(String phoneNumber) async {
+    await _apiClient.post<void>(
+      '/auth/password/forgot',
+      data: {
+        'phoneNumber': phoneNumber,
+      },
+    );
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String phoneNumber,
+    required String otpCode,
+    required String newPassword,
+  }) async {
+    await _apiClient.post<void>(
+      '/auth/password/reset',
+      data: {
+        'phoneNumber': phoneNumber,
+        'otpCode': otpCode,
+        'newPassword': newPassword,
+      },
+    );
   }
 }

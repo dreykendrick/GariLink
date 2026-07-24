@@ -9,38 +9,43 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
 
-class VerifyPhonePage extends ConsumerStatefulWidget {
-  const VerifyPhonePage({super.key});
+class ForgotPasswordPage extends ConsumerStatefulWidget {
+  const ForgotPasswordPage({super.key});
 
   @override
-  ConsumerState<VerifyPhonePage> createState() => _VerifyPhonePageState();
+  ConsumerState<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
 
-class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
+class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
-  final _codeController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _codeController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      final success = await ref.read(authStateProvider.notifier).verifyOtpCode(
-            _codeController.text.trim(),
+      await ref.read(authStateProvider.notifier).forgotPassword(
+            _phoneController.text.trim(),
           );
-      if (success && mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Phone number verified successfully!'),
+            content: Text('OTP code sent to your phone!'),
             backgroundColor: GariLinkColors.success,
           ),
         );
-        context.go('/home');
+        context.push('/reset-password');
       }
     } catch (e) {
       if (mounted) {
@@ -51,15 +56,18 @@ class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
-    final user = authState.user;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF070F1A) : GariLinkColors.background,
       appBar: AppBar(
@@ -83,7 +91,7 @@ class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Verify Phone',
+                    'Forgot Password',
                     style: GoogleFonts.inter(
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
@@ -93,7 +101,7 @@ class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
                   ),
                   const SizedBox(height: GariLinkSpacing.xs),
                   Text(
-                    'We sent a 6-digit OTP code to ${user?.phoneNumber ?? "your phone number"}. Enter it below to activate your account.',
+                    'Enter your phone number below to receive an OTP code to reset your password.',
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -102,54 +110,26 @@ class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
                   ),
                   const SizedBox(height: GariLinkSpacing.xxxl),
                   AppTextField(
-                    labelText: 'Verification Code',
-                    hintText: 'Enter 6-digit code',
-                    controller: _codeController,
-                    keyboardType: TextInputType.number,
+                    labelText: 'Phone number',
+                    hintText: '+254712345678',
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
-                        return 'Verification code is required';
+                        return 'Phone number is required';
                       }
-                      if (val.trim().length != 6) {
-                        return 'Code must be exactly 6 digits';
+                      final phoneRegex = RegExp(r'^\+[1-9]\d{6,14}$');
+                      if (!phoneRegex.hasMatch(val.trim())) {
+                        return 'Must be in format +254712345678';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: GariLinkSpacing.xxxl),
                   AppButton(
-                    text: 'Verify Code',
-                    isLoading: authState.isLoading,
+                    text: 'Send Reset Code',
+                    isLoading: _isLoading,
                     onPressed: _submit,
-                  ),
-                  const SizedBox(height: GariLinkSpacing.xl),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Didn't receive the code? ",
-                        style: GoogleFonts.inter(
-                          color: GariLinkColors.textSecondary,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('OTP code resent successfully!'),
-                              backgroundColor: GariLinkColors.success,
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'Resend Code',
-                          style: GoogleFonts.inter(
-                            color: GariLinkColors.accent,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

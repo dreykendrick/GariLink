@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/radius.dart';
+import '../../core/theme/spacing.dart';
+import '../../core/theme/typography.dart';
 
 enum AppButtonVariant { primary, secondary, outline }
 
@@ -48,21 +51,18 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isEnabled = widget.onPressed != null && !widget.isLoading;
 
     Color getBgColor() {
       if (!isEnabled) {
-        return theme.brightness == Brightness.dark
-            ? AppColors.neutral[800]!
-            : AppColors.neutral[200]!;
+        return isDark ? const Color(0xFF1E2D4A) : GariLinkColors.border;
       }
       switch (widget.variant) {
         case AppButtonVariant.primary:
-          return theme.colorScheme.primary;
+          return GariLinkColors.accent;
         case AppButtonVariant.secondary:
-          return theme.brightness == Brightness.dark
-              ? AppColors.darkSurface
-              : AppColors.neutral[100]!;
+          return isDark ? const Color(0xFF0F1E33) : GariLinkColors.borderLight;
         case AppButtonVariant.outline:
           return Colors.transparent;
       }
@@ -70,54 +70,51 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
 
     Color getTextColor() {
       if (!isEnabled) {
-        return AppColors.neutral[500]!;
+        return isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary;
       }
       switch (widget.variant) {
         case AppButtonVariant.primary:
-          return theme.colorScheme.onPrimary;
+          return Colors.white;
         case AppButtonVariant.secondary:
-          return theme.brightness == Brightness.dark
-              ? AppColors.darkText
-              : AppColors.neutral[800]!;
+          return isDark ? Colors.white : GariLinkColors.textPrimary;
         case AppButtonVariant.outline:
-          return theme.colorScheme.primary;
+          return GariLinkColors.accent;
       }
     }
 
     Border? getBorder() {
       if (widget.variant == AppButtonVariant.outline && isEnabled) {
-        return Border.all(color: theme.colorScheme.primary, width: 1.5);
+        return Border.all(color: GariLinkColors.accent, width: 1.5);
       }
       if (widget.variant == AppButtonVariant.outline && !isEnabled) {
-        return Border.all(color: AppColors.neutral[400]!, width: 1.5);
+        return Border.all(
+          color: isDark ? const Color(0xFF1E2D4A) : GariLinkColors.border,
+          width: 1.5,
+        );
       }
       return null;
     }
 
     return GestureDetector(
-      onTapDown: isEnabled
-          ? (_) => _controller.forward()
-          : null,
+      onTapDown: isEnabled ? (_) => _controller.forward() : null,
       onTapUp: isEnabled
           ? (_) {
               _controller.reverse();
               widget.onPressed?.call();
             }
           : null,
-      onTapCancel: isEnabled
-          ? () => _controller.reverse()
-          : null,
+      onTapCancel: isEnabled ? () => _controller.reverse() : null,
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: Container(
           height: 52,
           decoration: BoxDecoration(
             color: getBgColor(),
-            borderRadius: AppBorderRadius.mdBorderRadius,
+            borderRadius: GariLinkRadius.buttonBorderRadius,
             border: getBorder(),
           ),
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.lg),
           child: widget.isLoading
               ? SizedBox(
                   height: 20,
@@ -133,13 +130,12 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
                   children: [
                     if (widget.icon != null) ...[
                       Icon(widget.icon, color: getTextColor(), size: 20),
-                      const SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: GariLinkSpacing.sm),
                     ],
                     Text(
                       widget.text,
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: GariLinkTypography.labelMedium.copyWith(
                         color: getTextColor(),
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],

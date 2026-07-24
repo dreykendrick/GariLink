@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/radius.dart';
+import '../../core/theme/spacing.dart';
+import '../../core/theme/shadows.dart';
 
 class AppCard extends StatelessWidget {
   final Widget child;
@@ -22,19 +25,19 @@ class AppCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final defaultBg = isDark ? AppColors.darkCard : AppColors.neutral[0];
+    final defaultBg = isDark ? const Color(0xFF0F1E33) : GariLinkColors.surface;
     final defaultBorder = Border.all(
-      color: isDark ? AppColors.darkBorder : AppColors.neutral[100]!,
+      color: isDark ? const Color(0xFF1E2D4A) : GariLinkColors.border,
       width: 1,
     );
 
     Widget cardContent = Container(
-      padding: padding ?? const EdgeInsets.all(AppSpacing.base),
+      padding: padding ?? const EdgeInsets.all(GariLinkSpacing.lg),
       decoration: BoxDecoration(
         color: backgroundColor ?? defaultBg,
-        borderRadius: AppBorderRadius.mdBorderRadius,
+        borderRadius: GariLinkRadius.cardBorderRadius,
         border: border ?? defaultBorder,
-        boxShadow: const [AppShadows.sm],
+        boxShadow: const [GariLinkShadows.card],
       ),
       child: child,
     );

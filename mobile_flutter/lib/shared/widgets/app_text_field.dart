@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/radius.dart';
+import '../../core/theme/spacing.dart';
+import '../../core/theme/typography.dart';
 
 class AppTextField extends StatefulWidget {
   final String labelText;
@@ -41,15 +44,14 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     Widget? getSuffixWidget() {
       if (widget.isPassword) {
         return IconButton(
           icon: Icon(
             _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: theme.brightness == Brightness.dark
-                ? AppColors.darkTextMuted
-                : AppColors.neutral[500],
+            color: isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary,
           ),
           onPressed: () {
             setState(() {
@@ -64,9 +66,7 @@ class _AppTextFieldState extends State<AppTextField> {
           onTap: widget.onSuffixTap,
           child: Icon(
             widget.suffixIcon,
-            color: theme.brightness == Brightness.dark
-                ? AppColors.darkTextMuted
-                : AppColors.neutral[500],
+            color: isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary,
           ),
         );
       }
@@ -79,33 +79,28 @@ class _AppTextFieldState extends State<AppTextField> {
       children: [
         Text(
           widget.labelText,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.brightness == Brightness.dark
-                ? AppColors.darkText
-                : AppColors.neutral[800],
+          style: GariLinkTypography.labelMedium.copyWith(
+            color: isDark ? Colors.white : GariLinkColors.textPrimary,
           ),
         ),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: GariLinkSpacing.xs),
         TextFormField(
           controller: widget.controller,
           validator: widget.validator,
           obscureText: _obscureText,
           keyboardType: widget.keyboardType,
-          style: theme.textTheme.bodyLarge,
+          style: GariLinkTypography.bodyLarge.copyWith(
+            color: isDark ? Colors.white : GariLinkColors.textPrimary,
+          ),
           decoration: InputDecoration(
             hintText: widget.hintText,
-            hintStyle: TextStyle(
-              color: theme.brightness == Brightness.dark
-                  ? AppColors.darkTextMuted
-                  : AppColors.neutral[400],
+            hintStyle: GariLinkTypography.bodyMedium.copyWith(
+              color: isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary.withOpacity(0.6),
             ),
             prefixIcon: widget.prefixIcon != null
                 ? Icon(
                     widget.prefixIcon,
-                    color: theme.brightness == Brightness.dark
-                        ? AppColors.darkTextMuted
-                        : AppColors.neutral[500],
+                    color: isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary,
                   )
                 : null,
             suffixIcon: getSuffixWidget(),

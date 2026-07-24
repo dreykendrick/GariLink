@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/tokens.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/radius.dart';
+import '../../../../core/theme/spacing.dart';
+import '../../../../core/theme/typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/avatar.dart';
@@ -26,20 +30,25 @@ class ProfilePage extends ConsumerWidget {
 
     if (user == null) {
       return Scaffold(
+        backgroundColor: isDark ? const Color(0xFF070F1A) : GariLinkColors.background,
         appBar: AppBar(title: const Text('Profile')),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
+            padding: const EdgeInsets.all(GariLinkSpacing.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.account_circle_outlined, size: 80, color: Colors.grey),
-                const SizedBox(height: AppSpacing.base),
-                const Text(
-                  'Sign in to view your profile',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Icon(
+                  Icons.account_circle_outlined,
+                  size: 80,
+                  color: isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary,
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: GariLinkSpacing.md),
+                Text(
+                  'Sign in to view your profile',
+                  style: GariLinkTypography.titleMedium,
+                ),
+                const SizedBox(height: GariLinkSpacing.lg),
                 AppButton(
                   text: 'Sign In',
                   onPressed: () => context.go('/welcome'),
@@ -57,6 +66,7 @@ class ProfilePage extends ConsumerWidget {
         : 'U';
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF070F1A) : GariLinkColors.background,
       appBar: AppBar(
         title: const Text('My Profile'),
         actions: [
@@ -67,7 +77,7 @@ class ProfilePage extends ConsumerWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.base),
+        padding: const EdgeInsets.all(GariLinkSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -80,46 +90,44 @@ class ProfilePage extends ConsumerWidget {
                     imageUrl: user.profile?.photoUrl,
                     initials: initials,
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: GariLinkSpacing.md),
                   Text(
                     displayName,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.darkText : AppColors.neutral[900],
+                    style: GariLinkTypography.titleMedium.copyWith(
+                      color: isDark ? Colors.white : GariLinkColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: GariLinkSpacing.xs),
                   Text(
                     user.phoneNumber,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.neutral[500],
+                    style: GariLinkTypography.bodyMedium.copyWith(
+                      color: GariLinkColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: GariLinkSpacing.md),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Phone Verification: '),
+                      Text(
+                        'Phone Verification: ',
+                        style: GariLinkTypography.bodyMedium,
+                      ),
                       StatusBadge(status: user.isPhoneVerified ? 'ACTIVE' : 'PENDING'),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.base),
+            const SizedBox(height: GariLinkSpacing.lg),
 
             // Account Information Section
             Text(
               'Account Information',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isDark ? AppColors.darkText : AppColors.neutral[800],
+              style: GariLinkTypography.labelMedium.copyWith(
+                color: isDark ? Colors.white : GariLinkColors.textPrimary,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: GariLinkSpacing.sm),
             AppCard(
               child: Column(
                 children: [
@@ -146,7 +154,7 @@ class ProfilePage extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.xx2l),
+            const SizedBox(height: GariLinkSpacing.xxxl),
 
             // Logout Action Button
             AppButton(
@@ -169,23 +177,23 @@ class ProfilePage extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
-        Icon(icon, color: isDark ? AppColors.darkTextMuted : AppColors.neutral[500], size: 22),
-        const SizedBox(width: AppSpacing.md),
+        Icon(
+          icon,
+          color: isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary,
+          size: 22,
+        ),
+        const SizedBox(width: GariLinkSpacing.md),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: isDark ? AppColors.darkTextMuted : AppColors.neutral[600],
+          style: GariLinkTypography.bodyMedium.copyWith(
+            color: isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary,
           ),
         ),
         const Spacer(),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: isDark ? AppColors.darkText : AppColors.neutral[800],
+          style: GariLinkTypography.labelMedium.copyWith(
+            color: isDark ? Colors.white : GariLinkColors.textPrimary,
           ),
         ),
       ],
