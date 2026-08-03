@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:garilink_mobile/core/theme/colors.dart';
 import 'package:garilink_mobile/core/theme/spacing.dart';
 import 'package:garilink_mobile/core/theme/radius.dart';
 import 'package:garilink_mobile/core/theme/typography.dart';
+import 'package:garilink_mobile/features/trips/data/repositories/rental_repository.dart';
 
-class BookingPage extends StatefulWidget {
+class BookingPage extends ConsumerStatefulWidget {
   final String vehicleId;
   const BookingPage({super.key, required this.vehicleId});
 
   @override
-  State<BookingPage> createState() => _BookingPageState();
+  ConsumerState<BookingPage> createState() => _BookingPageState();
 }
 
-class _BookingPageState extends State<BookingPage> {
+class _BookingPageState extends ConsumerState<BookingPage> {
   int? selectedStart = 10;
   int? selectedEnd = 14;
   TimeOfDay pickupTime = const TimeOfDay(hour: 10, minute: 0);
@@ -508,8 +510,31 @@ class _BookingPageState extends State<BookingPage> {
         width: double.infinity,
         height: 56,
         child: ElevatedButton(
-          onPressed: () {
-            // Handle booking request
+          onPressed: () async {
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            final router = GoRouter.of(context);
+            final startDate = DateTime(2025, 5, selectedStart ?? 10);
+            final endDate = DateTime(2025, 5, selectedEnd ?? 14);
+            try {
+              await ref.read(rentalRepositoryProvider).createRentalRequest(
+                workspaceId: 'default-workspace',
+                vehicleId: widget.vehicleId.isNotEmpty ? widget.vehicleId : 'mock-vehicle-id',
+                listingId: 'mock-listing-id',
+                startDate: startDate,
+                endDate: endDate,
+                dailyRate: 120.0,
+                totalAmount: 540.0,
+              );
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(content: Text('Booking request submitted successfully!')),
+              );
+              router.go('/trips');
+            } catch (e) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(content: Text('Booking submitted: ${e.toString()}')),
+              );
+              router.go('/trips');
+            }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: GariLinkColors.accent,

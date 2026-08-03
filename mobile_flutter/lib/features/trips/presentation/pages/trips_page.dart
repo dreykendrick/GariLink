@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:garilink_mobile/core/theme/colors.dart';
 import 'package:garilink_mobile/core/theme/spacing.dart';
 import 'package:garilink_mobile/core/theme/radius.dart';
+import '../providers/trips_provider.dart';
 
 class TripsPage extends ConsumerStatefulWidget {
   const TripsPage({Key? key}) : super(key: key);
@@ -50,7 +51,17 @@ class _TripsPageState extends ConsumerState<TripsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredTrips = _allTrips
+    final apiRentals = ref.watch(myTripsProvider).valueOrNull ?? [];
+    final mappedApiTrips = apiRentals.map((r) => {
+      'type': 'Upcoming',
+      'name': 'GariLink Rental #${r['id'].toString().substring(0, 6)}',
+      'dates': '${r['startDate'] ?? ''} – ${r['endDate'] ?? ''}',
+      'price': r['status'] ?? 'PENDING',
+      'status': r['status'] ?? 'Confirmed',
+    }).toList();
+
+    final combinedTrips = [...mappedApiTrips, ..._allTrips];
+    final filteredTrips = combinedTrips
         .where((trip) => trip['type'] == _tabs[_selectedTabIndex])
         .toList();
 

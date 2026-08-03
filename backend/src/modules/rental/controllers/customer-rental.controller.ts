@@ -16,8 +16,9 @@ export class CustomerRentalController {
 
   @Post()
   async create(@CurrentUser() user: any, @Body() body: any) {
+    const userId = user.userId || user.id;
     const result = await this.createRentalRequest.execute({
-      customerId: user.id,
+      customerId: userId,
       workspaceId: body.workspaceId,
       vehicleId: body.vehicleId,
       listingId: body.listingId,
@@ -32,8 +33,9 @@ export class CustomerRentalController {
 
   @Patch(':id/cancel')
   async cancel(@CurrentUser() user: any, @Param('id') rentalId: string) {
+    const userId = user.userId || user.id;
     const result = await this.cancelRentalRequest.execute({
-      customerId: user.id,
+      customerId: userId,
       rentalId,
     });
     if (result.isFail) throw new HttpException(result.error.message, result.error.statusCode || HttpStatus.BAD_REQUEST);
@@ -42,7 +44,8 @@ export class CustomerRentalController {
 
   @Get()
   async getMy(@CurrentUser() user: any) {
-    const result = await this.getMyRentalRequests.execute(user.id);
+    const userId = user.userId || user.id;
+    const result = await this.getMyRentalRequests.execute(userId);
     if (result.isFail) throw new HttpException(result.error.message, result.error.statusCode || HttpStatus.BAD_REQUEST);
     return result.value.map(r => ({
       id: r.id,

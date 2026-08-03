@@ -14,7 +14,10 @@ class ApiClient {
   late final Dio _dio;
   late final Dio _refreshDio;
 
-  static const String _defaultBaseUrl = 'http://192.168.1.104:3000/api/v1';
+  static const String _defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:3000/api/v1',
+  );
 
   ApiClient(this._storageService, {String? baseUrl}) {
     final finalBaseUrl = baseUrl ?? _defaultBaseUrl;

@@ -22,42 +22,48 @@ export class OwnerRentalController {
 
   @Get()
   async getRequests(@CurrentUser() user: any, @Param('workspaceId') workspaceId: string) {
-    const result = await this.getWorkspaceRentalRequests.execute(user.id, workspaceId);
+    const userId = user.userId || user.id;
+    const result = await this.getWorkspaceRentalRequests.execute(userId, workspaceId);
     if (result.isFail) throw new HttpException(result.error.message, result.error.statusCode || HttpStatus.BAD_REQUEST);
     return result.value;
   }
 
   @Patch(':id/approve')
   async approve(@CurrentUser() user: any, @Param('id') rentalId: string) {
-    const result = await this.approveRentalRequest.execute({ userId: user.id, rentalId });
+    const userId = user.userId || user.id;
+    const result = await this.approveRentalRequest.execute({ userId, rentalId });
     if (result.isFail) throw new HttpException(result.error.message, result.error.statusCode || HttpStatus.BAD_REQUEST);
     return { success: true };
   }
 
   @Patch(':id/reject')
   async reject(@CurrentUser() user: any, @Param('id') rentalId: string, @Body() body: any) {
-    const result = await this.rejectRentalRequest.execute({ userId: user.id, rentalId, reason: body.reason });
+    const userId = user.userId || user.id;
+    const result = await this.rejectRentalRequest.execute({ userId, rentalId, reason: body.reason });
     if (result.isFail) throw new HttpException(result.error.message, result.error.statusCode || HttpStatus.BAD_REQUEST);
     return { success: true };
   }
 
   @Patch(':id/ready')
   async ready(@CurrentUser() user: any, @Param('id') rentalId: string) {
-    const result = await this.markRentalReady.execute({ userId: user.id, rentalId });
+    const userId = user.userId || user.id;
+    const result = await this.markRentalReady.execute({ userId, rentalId });
     if (result.isFail) throw new HttpException(result.error.message, result.error.statusCode || HttpStatus.BAD_REQUEST);
     return { success: true };
   }
 
   @Patch(':id/start')
   async start(@CurrentUser() user: any, @Param('id') rentalId: string) {
-    const result = await this.startRental.execute({ userId: user.id, rentalId });
+    const userId = user.userId || user.id;
+    const result = await this.startRental.execute({ userId, rentalId });
     if (result.isFail) throw new HttpException(result.error.message, result.error.statusCode || HttpStatus.BAD_REQUEST);
     return { success: true };
   }
 
   @Patch(':id/complete')
   async complete(@CurrentUser() user: any, @Param('id') rentalId: string) {
-    const result = await this.completeRental.execute({ userId: user.id, rentalId });
+    const userId = user.userId || user.id;
+    const result = await this.completeRental.execute({ userId, rentalId });
     if (result.isFail) throw new HttpException(result.error.message, result.error.statusCode || HttpStatus.BAD_REQUEST);
     return { success: true };
   }

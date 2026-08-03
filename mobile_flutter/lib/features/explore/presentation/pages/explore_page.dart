@@ -7,6 +7,7 @@ import 'package:garilink_mobile/core/theme/colors.dart';
 import 'package:garilink_mobile/core/theme/spacing.dart';
 import 'package:garilink_mobile/core/theme/radius.dart';
 import 'package:garilink_mobile/core/theme/typography.dart';
+import '../providers/explore_provider.dart';
 
 class ExplorePage extends ConsumerStatefulWidget {
   const ExplorePage({super.key});
@@ -85,6 +86,18 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       final subtitle = vehicle['subtitle'].toString().toLowerCase();
       return name.contains(_searchQuery) || subtitle.contains(_searchQuery);
     }).toList();
+
+    final apiListings = ref.watch(searchListingsProvider(_searchQuery)).valueOrNull ?? [];
+    final activeResults = apiListings.isNotEmpty
+        ? apiListings.map((item) => {
+            'name': item['title'] ?? item['name'] ?? 'Vehicle Listing',
+            'subtitle': item['pickupCity'] ?? item['subtitle'] ?? 'Dar es Salaam',
+            'price': '\$${item['rentalConfig']?['dailyRate'] ?? item['price'] ?? 80}/day',
+            'rating': item['rating'] ?? 4.8,
+            'image': 'assets/images/vehicles/placeholder.jpg',
+            'isAvailable': true,
+          }).toList()
+        : filteredResults;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -199,7 +212,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${filteredResults.length} vehicles found',
+                    '${activeResults.length} vehicles found',
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -227,9 +240,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                itemCount: filteredResults.length,
+                itemCount: activeResults.length,
                 itemBuilder: (context, index) {
-                  final vehicle = filteredResults[index];
+                  final vehicle = activeResults[index];
                   return GestureDetector(
                     onTap: () => context.push('/vehicle-details'),
                     child: Container(
