@@ -23,12 +23,12 @@ void main() {
       ),
     );
 
-    // Verify that the Splash screen is loaded first
+    // Verify that the Splash screen is loaded first and displays the logo image
     await tester.pump();
-    expect(find.text('Everything Cars. One App.'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
 
-    // Fast-forward virtual time to complete the splash transition delay (3.2 seconds)
-    await tester.pump(const Duration(seconds: 4));
+    // Fast-forward virtual time to complete the splash transition delay (2.5 seconds)
+    await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
 
     // Verify Onboarding Page 1 is loaded
