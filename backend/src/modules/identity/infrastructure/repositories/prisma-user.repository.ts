@@ -37,6 +37,17 @@ export class PrismaUserRepository implements IUserRepository {
   async findByIdentifier(identifier: string): Promise<User | null> {
     const isEmail = identifier.includes('@');
     if (isEmail) return this.findByEmail(identifier);
+
+    let phone = identifier.trim();
+    if (phone.startsWith('0') && phone.length >= 10) {
+      phone = '+255' + phone.substring(1);
+    } else if (!phone.startsWith('+') && phone.length >= 9) {
+      phone = '+' + phone;
+    }
+
+    const userByPhone = await this.findByPhoneNumber(phone);
+    if (userByPhone) return userByPhone;
+
     return this.findByPhoneNumber(identifier);
   }
 

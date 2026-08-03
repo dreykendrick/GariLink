@@ -62,13 +62,13 @@ class AuthRepositoryImpl implements AuthRepository {
     );
 
     final user = UserModel.fromJson(response['user'] as Map<String, dynamic>);
-    final session = response['session'] as Map<String, dynamic>;
+    final session = response['session'] as Map<String, dynamic>?;
 
     return AuthResponse(
-      accessToken: response['accessToken'] as String,
-      refreshToken: response['refreshToken'] as String,
+      accessToken: response['accessToken'] as String? ?? '',
+      refreshToken: response['refreshToken'] as String? ?? '',
       user: user,
-      sessionId: session['id'] as String,
+      sessionId: session != null ? (session['id'] as String? ?? '') : '',
     );
   }
 

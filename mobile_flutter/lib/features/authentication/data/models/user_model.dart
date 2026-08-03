@@ -114,10 +114,12 @@ class UserModel {
   }
 
   static User fromJson(Map<String, dynamic> json) {
-    final rolesList = (json['roles'] as List<dynamic>?)
-            ?.map((e) => mapRole(e as String))
-            .toList() ??
-        [UserRole.customer];
+    final rawRoles = json['roles'] as List<dynamic>?;
+    final rolesList = rawRoles?.map((e) {
+      if (e is String) return mapRole(e);
+      if (e is Map<String, dynamic> && e['role'] is String) return mapRole(e['role'] as String);
+      return UserRole.customer;
+    }).toList() ?? [UserRole.customer];
 
     final capabilitiesList = (json['capabilities'] as List<dynamic>?)?.map((e) {
       final map = e as Map<String, dynamic>;
