@@ -41,10 +41,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       }
     } catch (e) {
       if (mounted) {
+        final message = e.toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('AppException: ', '')
+            .trim();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(message.isEmpty ? 'Login failed. Please try again.' : message),
             backgroundColor: GariLinkColors.error,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }

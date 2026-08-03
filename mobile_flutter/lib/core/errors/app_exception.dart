@@ -6,7 +6,7 @@ class AppException implements Exception {
   const AppException(this.message, {this.code, this.statusCode});
 
   @override
-  String toString() => 'AppException(message: $message, code: $code, statusCode: $statusCode)';
+  String toString() => message;
 }
 
 class NetworkException extends AppException {
