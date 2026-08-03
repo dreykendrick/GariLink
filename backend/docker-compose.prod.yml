@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: garilink_api
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-garilink_production_jwt_secret_change_me_key}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-garilink_production_refresh_jwt_secret_change_me_key}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: garilink_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-garilink}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-garilink_secure_prod_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-garilink_production}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-garilink}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_prod_data:
