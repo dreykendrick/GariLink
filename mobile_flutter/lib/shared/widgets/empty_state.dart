@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/spacing.dart';
 
 class EmptyState extends StatelessWidget {
   final String title;
@@ -20,16 +21,16 @@ class EmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(GariLinkSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
               size: 64,
-              color: isDark ? AppColors.darkTextMuted : AppColors.neutral[400],
+              color: isDark ? GariLinkColors.darkTextMuted : GariLinkColors.textMuted,
             ),
-            const SizedBox(height: AppSpacing.base),
+            const SizedBox(height: GariLinkSpacing.lg),
             Text(
               title,
               style: theme.textTheme.titleMedium?.copyWith(
@@ -37,11 +38,11 @@ class EmptyState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: GariLinkSpacing.sm),
             Text(
               description,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDark ? AppColors.darkTextMuted : AppColors.neutral[500],
+                color: isDark ? GariLinkColors.darkTextMuted : GariLinkColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),

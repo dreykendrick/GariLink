@@ -6,6 +6,8 @@ import '../theme/colors.dart';
 import '../theme/radius.dart';
 import '../theme/spacing.dart';
 import '../theme/typography.dart';
+import '../theme/icons.dart';
+import '../../features/authentication/domain/entities/user.dart';
 import '../../features/authentication/presentation/providers/auth_provider.dart';
 import '../../features/authentication/presentation/pages/splash_page.dart';
 import '../../features/authentication/presentation/pages/onboarding_page.dart';
@@ -14,7 +16,17 @@ import '../../features/authentication/presentation/pages/register_page.dart';
 import '../../features/authentication/presentation/pages/forgot_password_page.dart';
 import '../../features/authentication/presentation/pages/reset_password_page.dart';
 import '../../features/authentication/presentation/pages/verify_phone_page.dart';
+import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/explore/presentation/pages/explore_page.dart';
+import '../../features/trips/presentation/pages/trips_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/vehicle/presentation/pages/vehicle_details_page.dart';
+import '../../features/booking/presentation/pages/booking_page.dart';
+import '../../features/owner/presentation/pages/owner_dashboard_page.dart';
+import '../../features/owner/presentation/pages/my_vehicles_page.dart';
+import '../../features/owner/presentation/pages/incoming_requests_page.dart';
+import '../../features/owner/presentation/pages/analytics_page.dart';
+import '../../features/owner/presentation/pages/menu_page.dart';
 import 'placeholder_pages.dart';
 
 final goRouterRootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -36,20 +48,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           state.matchedLocation == '/forgot-password' ||
           state.matchedLocation == '/reset-password';
 
-      // Protected routes list
-      final isProtectedRoute = state.matchedLocation == '/manage' ||
-          state.matchedLocation == '/saved' ||
-          state.matchedLocation == '/trips' ||
-          state.matchedLocation == '/verify-phone';
+      final isProtectedRoute = state.matchedLocation == '/trips' ||
+          state.matchedLocation == '/verify-phone' ||
+          state.matchedLocation == '/booking' ||
+          state.matchedLocation.startsWith('/owner');
 
-      if (!isAuthenticated && isProtectedRoute) {
-        return '/login';
-      }
-
-      if (isAuthenticated && loggingIn) {
-        return '/home';
-      }
-
+      if (!isAuthenticated && isProtectedRoute) return '/login';
+      if (isAuthenticated && loggingIn) return '/home';
       return null;
     },
     routes: [
@@ -93,6 +98,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: goRouterRootKey,
         builder: (context, state) => const VerifyPhonePage(),
       ),
+      // Full-screen pages (above shell, keep back button)
+      GoRoute(
+        path: '/vehicle-details',
+        parentNavigatorKey: goRouterRootKey,
+        builder: (context, state) {
+          final vehicleId = state.uri.queryParameters['id'] ?? '';
+          return VehicleDetailsPageWrapper(vehicleId: vehicleId);
+        },
+      ),
+      GoRoute(
+        path: '/booking',
+        parentNavigatorKey: goRouterRootKey,
+        builder: (context, state) {
+          final vehicleId = state.uri.queryParameters['id'] ?? '';
+          return BookingPageWrapper(vehicleId: vehicleId);
+        },
+      ),
       ShellRoute(
         navigatorKey: goRouterShellKey,
         builder: (context, state, child) {
@@ -101,39 +123,40 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/home',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: HomePage(),
-            ),
+            pageBuilder: (context, state) => const NoTransitionPage(child: HomePageWrapper()),
           ),
           GoRoute(
             path: '/explore',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: ExplorePage(),
-            ),
-          ),
-          GoRoute(
-            path: '/manage',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: ManagePage(),
-            ),
-          ),
-          GoRoute(
-            path: '/saved',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SavedPage(),
-            ),
+            pageBuilder: (context, state) => const NoTransitionPage(child: ExplorePageWrapper()),
           ),
           GoRoute(
             path: '/trips',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: TripsPage(),
-            ),
+            pageBuilder: (context, state) => const NoTransitionPage(child: TripsPageWrapper()),
           ),
           GoRoute(
             path: '/profile',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: ProfilePage(),
-            ),
+            pageBuilder: (context, state) => const NoTransitionPage(child: ProfilePageWrapper()),
+          ),
+          // Owner tabs
+          GoRoute(
+            path: '/owner-dashboard',
+            pageBuilder: (context, state) => const NoTransitionPage(child: OwnerDashboardWrapper()),
+          ),
+          GoRoute(
+            path: '/my-vehicles',
+            pageBuilder: (context, state) => const NoTransitionPage(child: MyVehiclesWrapper()),
+          ),
+          GoRoute(
+            path: '/incoming-requests',
+            pageBuilder: (context, state) => const NoTransitionPage(child: IncomingRequestsWrapper()),
+          ),
+          GoRoute(
+            path: '/analytics',
+            pageBuilder: (context, state) => const NoTransitionPage(child: AnalyticsWrapper()),
+          ),
+          GoRoute(
+            path: '/menu',
+            pageBuilder: (context, state) => const NoTransitionPage(child: MenuWrapper()),
           ),
         ],
       ),
@@ -141,157 +164,155 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+// ─── Role detection helper ─────────────────────────────────────────────────
+
+bool _isOwner(User? user) {
+  if (user == null) return false;
+  return user.roles.contains(UserRole.privateOwner) ||
+      user.roles.contains(UserRole.dealer);
+}
+
+// ─── Scaffold with role-based bottom nav ──────────────────────────────────
+
 class ScaffoldWithNavBar extends ConsumerWidget {
   final Widget child;
-
-  const ScaffoldWithNavBar({
-    required this.child,
-    super.key,
-  });
+  const ScaffoldWithNavBar({required this.child, super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
     final authState = ref.watch(authStateProvider);
     final isAuthenticated = authState.isAuthenticated;
+    final isOwner = _isOwner(authState.user);
 
-    int getSelectedIndex() {
-      switch (location) {
-        case '/home':
-          return 0;
-        case '/explore':
-          return 1;
-        case '/trips':
-          return 2;
-        case '/profile':
-          return 3;
-        default:
-          return 0;
-      }
-    }
+    // ── nav config ──────────────────────────────────────────────────────────
+    final renterItems = [
+      _NavItem(icon: GariLinkIcons.home, activeIcon: GariLinkIcons.homeActive, label: 'Home', path: '/home'),
+      _NavItem(icon: GariLinkIcons.explore, activeIcon: GariLinkIcons.explore, label: 'Explore', path: '/explore'),
+      _NavItem(icon: GariLinkIcons.trips, activeIcon: GariLinkIcons.tripsActive, label: 'Trips', path: '/trips'),
+      _NavItem(icon: GariLinkIcons.profile, activeIcon: GariLinkIcons.profileActive, label: 'Profile', path: '/profile'),
+    ];
 
-    void handleNavigation(int index) {
-      switch (index) {
-        case 0:
-          context.go('/home');
-          break;
-        case 1:
-          context.go('/explore');
-          break;
-        case 2:
-          if (isAuthenticated) {
-            context.go('/trips');
-          } else {
-            context.push('/login');
-          }
-          break;
-        case 3:
-          context.go('/profile');
-          break;
-      }
-    }
+    final ownerItems = [
+      _NavItem(icon: GariLinkIcons.home, activeIcon: GariLinkIcons.homeActive, label: 'Home', path: '/owner-dashboard'),
+      _NavItem(icon: GariLinkIcons.bookings, activeIcon: GariLinkIcons.bookingsActive, label: 'Bookings', path: '/incoming-requests'),
+      _NavItem(icon: GariLinkIcons.vehicles, activeIcon: GariLinkIcons.vehiclesActive, label: 'Vehicles', path: '/my-vehicles'),
+      _NavItem(icon: GariLinkIcons.menu, activeIcon: GariLinkIcons.menu, label: 'Menu', path: '/menu'),
+    ];
+
+    final items = isOwner ? ownerItems : renterItems;
+
+    int activeIndex = items.indexWhere((item) => item.path == location);
+    if (activeIndex < 0) activeIndex = 0;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeIndex = getSelectedIndex();
+
+    void handleNav(int index) {
+      final path = items[index].path;
+      if ((path == '/trips' || path == '/incoming-requests' || path == '/my-vehicles') && !isAuthenticated) {
+        context.push('/login');
+        return;
+      }
+      context.go(path);
+    }
 
     return Scaffold(
       body: child,
       resizeToAvoidBottomInset: false,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
+        heroTag: 'main_fab',
         onPressed: () {
           if (!isAuthenticated) {
             context.push('/login');
-          } else {
-            showModalBottomSheet(
-              context: context,
-              backgroundColor: isDark ? const Color(0xFF0F1E33) : Colors.white,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(GariLinkRadius.bottomSheet)),
-              ),
-              builder: (context) => const ListVehicleBottomSheet(),
-            );
+            return;
           }
+          _showListVehicleSheet(context);
         },
         backgroundColor: GariLinkColors.accent,
         shape: const CircleBorder(),
         elevation: 4,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
       ),
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8.0,
-        color: isDark ? const Color(0xFF0F1E33) : Colors.white,
+        color: isDark ? GariLinkColors.darkSurface : Colors.white,
         elevation: 8,
         padding: EdgeInsets.zero,
         height: 64,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(
-              context: context,
-              icon: Icons.home_outlined,
-              activeIcon: Icons.home,
-              label: 'Home',
-              isActive: activeIndex == 0,
-              onTap: () => handleNavigation(0),
-            ),
-            _buildNavItem(
-              context: context,
-              icon: Icons.search,
-              activeIcon: Icons.search,
-              label: 'Explore',
-              isActive: activeIndex == 1,
-              onTap: () => handleNavigation(1),
-            ),
-            const SizedBox(width: 48), // FAB center space
-            _buildNavItem(
-              context: context,
-              icon: Icons.calendar_today_outlined,
-              activeIcon: Icons.calendar_today,
-              label: 'Trips',
-              isActive: activeIndex == 2,
-              onTap: () => handleNavigation(2),
-            ),
-            _buildNavItem(
-              context: context,
-              icon: Icons.person_outline,
-              activeIcon: Icons.person,
-              label: 'Profile',
-              isActive: activeIndex == 3,
-              onTap: () => handleNavigation(3),
-            ),
+            // First two items
+            ...items.take(2).toList().asMap().entries.map((e) => Expanded(
+              child: _NavItemWidget(
+                item: e.value,
+                isActive: activeIndex == e.key,
+                onTap: () => handleNav(e.key),
+              ),
+            )),
+            // FAB spacer
+            const SizedBox(width: 56),
+            // Last two items
+            ...items.skip(2).toList().asMap().entries.map((e) => Expanded(
+              child: _NavItemWidget(
+                item: items[e.key + 2],
+                isActive: activeIndex == e.key + 2,
+                onTap: () => handleNav(e.key + 2),
+              ),
+            )),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavItem({
-    required BuildContext context,
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isActive
-        ? GariLinkColors.accent
-        : (isDark ? GariLinkColors.textMuted : GariLinkColors.textSecondary);
+  void _showListVehicleSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => const _ListVehicleSheet(),
+    );
+  }
+}
 
+// ─── Nav item data ─────────────────────────────────────────────────────────
+
+class _NavItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String path;
+  const _NavItem({required this.icon, required this.activeIcon, required this.label, required this.path});
+}
+
+// ─── Nav item widget ───────────────────────────────────────────────────────
+
+class _NavItemWidget extends StatelessWidget {
+  final _NavItem item;
+  final bool isActive;
+  final VoidCallback onTap;
+  const _NavItemWidget({required this.item, required this.isActive, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isActive ? GariLinkColors.accent : GariLinkColors.textSecondary;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 64,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(isActive ? activeIcon : icon, color: color, size: 22),
+            Icon(isActive ? item.activeIcon : item.icon, color: color, size: 22),
             const SizedBox(height: 2),
             Text(
-              label,
+              item.label,
               style: GoogleFonts.inter(
                 fontSize: 10,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
@@ -305,54 +326,152 @@ class ScaffoldWithNavBar extends ConsumerWidget {
   }
 }
 
-class ListVehicleBottomSheet extends StatelessWidget {
-  const ListVehicleBottomSheet({super.key});
+// ─── List vehicle bottom sheet ─────────────────────────────────────────────
+
+class _ListVehicleSheet extends StatelessWidget {
+  const _ListVehicleSheet();
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.all(GariLinkSpacing.xxl),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'List Your Vehicle',
-            style: GariLinkTypography.titleLarge.copyWith(
-              color: isDark ? Colors.white : GariLinkColors.textPrimary,
+          // Handle
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: GariLinkColors.neutral200,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: GariLinkSpacing.sm),
+          const SizedBox(height: 20),
+          Text('List Your Vehicle', style: GariLinkTypography.titleLarge, textAlign: TextAlign.center),
+          const SizedBox(height: 8),
           Text(
             'Turn your vehicle into income. Share it securely with verified renters in Tanzania.',
             style: GariLinkTypography.bodyMedium,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: GariLinkSpacing.xxl),
+          const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(context);
-              context.go('/manage');
+              context.go('/owner-dashboard');
             },
             icon: const Icon(Icons.dashboard_outlined),
             label: const Text('Go to Owner Dashboard'),
             style: ElevatedButton.styleFrom(
               backgroundColor: GariLinkColors.accent,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: GariLinkSpacing.md),
-              shape: RoundedRectangleBorder(
-                borderRadius: GariLinkRadius.buttonBorderRadius,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
-          const SizedBox(height: GariLinkSpacing.md),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          const SizedBox(height: 12),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Wrapper widgets (deferred imports via placeholder until real pages exist) ──
+
+class HomePageWrapper extends ConsumerWidget {
+  const HomePageWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const HomePage();
+}
+
+class ExplorePageWrapper extends ConsumerWidget {
+  const ExplorePageWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const ExplorePage();
+}
+
+class TripsPageWrapper extends ConsumerWidget {
+  const TripsPageWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const TripsPage();
+}
+
+class ProfilePageWrapper extends ConsumerWidget {
+  const ProfilePageWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const ProfilePage();
+}
+
+class OwnerDashboardWrapper extends ConsumerWidget {
+  const OwnerDashboardWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const OwnerDashboardPage();
+}
+
+class MyVehiclesWrapper extends ConsumerWidget {
+  const MyVehiclesWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const MyVehiclesPage();
+}
+
+class IncomingRequestsWrapper extends ConsumerWidget {
+  const IncomingRequestsWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const IncomingRequestsPage();
+}
+
+class AnalyticsWrapper extends ConsumerWidget {
+  const AnalyticsWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const AnalyticsPage();
+}
+
+class MenuWrapper extends ConsumerWidget {
+  const MenuWrapper({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const MenuPage();
+}
+
+class VehicleDetailsPageWrapper extends StatelessWidget {
+  final String vehicleId;
+  const VehicleDetailsPageWrapper({required this.vehicleId, super.key});
+  @override
+  Widget build(BuildContext context) => VehicleDetailsPage(vehicleId: vehicleId);
+}
+
+class BookingPageWrapper extends StatelessWidget {
+  final String vehicleId;
+  const BookingPageWrapper({required this.vehicleId, super.key});
+  @override
+  Widget build(BuildContext context) => BookingPage(vehicleId: vehicleId);
+}
+
+// ─── Temporary placeholder page ────────────────────────────────────────────
+
+class _TempPage extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  const _TempPage({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: GariLinkColors.background,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: GariLinkColors.accent),
+            const SizedBox(height: 16),
+            Text(title, style: GariLinkTypography.titleLarge),
+            const SizedBox(height: 8),
+            Text('Building...', style: GariLinkTypography.bodyMedium),
+          ],
+        ),
       ),
     );
   }

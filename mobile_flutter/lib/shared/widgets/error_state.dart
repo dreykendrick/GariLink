@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/spacing.dart';
 import 'app_button.dart';
 
 class ErrorState extends StatelessWidget {
@@ -19,16 +20,16 @@ class ErrorState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(GariLinkSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
+            const Icon(
+              Icons.error_outline_rounded,
               size: 64,
-              color: AppColors.error[500],
+              color: GariLinkColors.error,
             ),
-            const SizedBox(height: AppSpacing.base),
+            const SizedBox(height: GariLinkSpacing.lg),
             const Text(
               'Oops! Something went wrong',
               style: TextStyle(
@@ -37,20 +38,20 @@ class ErrorState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: GariLinkSpacing.sm),
             Text(
               message,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDark ? AppColors.darkTextMuted : AppColors.neutral[500],
+                color: isDark ? GariLinkColors.darkTextMuted : GariLinkColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: GariLinkSpacing.xl),
               AppButton(
                 text: 'Try Again',
                 onPressed: onRetry,
-                variant: AppButtonVariant.outline,
+                variant: AppButtonVariant.secondary,
               ),
             ],
           ],

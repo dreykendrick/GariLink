@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../shared/widgets/app_button.dart';
-import '../../shared/widgets/app_card.dart';
 
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
@@ -22,7 +21,7 @@ class WelcomePage extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+                  color: Color(0xFF2D7FF9),
                 ),
               ),
               const SizedBox(height: 16),
@@ -34,13 +33,13 @@ class WelcomePage extends StatelessWidget {
               const SizedBox(height: 100),
               AppButton(
                 text: 'Sign In',
-                onPressed: () => context.push('/login'), 
+                onPressed: () => context.push('/login'),
               ),
               const SizedBox(height: 12),
               AppButton(
                 text: 'Browse without signing in',
                 variant: AppButtonVariant.secondary,
-                onPressed: () => context.go('/home'), 
+                onPressed: () => context.go('/home'),
               ),
             ],
           ),
@@ -49,69 +48,3 @@ class WelcomePage extends StatelessWidget {
     );
   }
 }
-
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Home Screen Placeholder'),
-      ),
-    );
-  }
-}
-
-class ExplorePage extends StatelessWidget {
-  const ExplorePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Explore Screen Placeholder'),
-      ),
-    );
-  }
-}
-
-class ManagePage extends StatelessWidget {
-  const ManagePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Manage Screen Placeholder'),
-      ),
-    );
-  }
-}
-
-class SavedPage extends StatelessWidget {
-  const SavedPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Saved Listings Placeholder'),
-      ),
-    );
-  }
-}
-
-class TripsPage extends StatelessWidget {
-  const TripsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Trips Screen Placeholder'),
-      ),
-    );
-  }
-}
-

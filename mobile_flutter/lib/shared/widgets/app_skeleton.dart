@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/spacing.dart';
+import '../../core/theme/radius.dart';
 
-class AppSkeleton extends StatelessWidget {
+/// A shimmer-style skeleton loader that shows a pulsing animation.
+/// Does not require the shimmer package — uses a simple AnimatedContainer approach.
+class AppSkeleton extends StatefulWidget {
   final double width;
   final double height;
   final double borderRadius;
@@ -10,73 +13,44 @@ class AppSkeleton extends StatelessWidget {
   const AppSkeleton({
     required this.width,
     required this.height,
-    this.borderRadius = AppBorderRadius.sm,
+    this.borderRadius = GariLinkRadius.badge,
     super.key,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+  State<AppSkeleton> createState() => _AppSkeletonState();
 
-    final baseColor = isDark ? AppColors.neutral[800]! : AppColors.neutral[200]!;
-    final highlightColor = isDark ? AppColors.neutral[700]! : AppColors.neutral[100]!;
-
-    return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: AppColors.neutral[0],
-          borderRadius: BorderRadius.circular(borderRadius),
-        ),
-      ),
-    );
-  }
-
-  // Pre-configured skeleton loader templates
+  /// Pre-configured card list skeleton.
   static Widget cardList({int count = 3}) {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: count,
       itemBuilder: (context, index) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.base),
+          padding: const EdgeInsets.only(bottom: GariLinkSpacing.lg),
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.base),
+            padding: const EdgeInsets.all(GariLinkSpacing.lg),
             decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.darkCard
-                  : AppColors.neutral[0],
-              borderRadius: AppBorderRadius.mdBorderRadius,
+              color: isDark ? GariLinkColors.darkSurfaceVariant : GariLinkColors.surface,
+              borderRadius: GariLinkRadius.cardBorderRadius,
               border: Border.all(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? AppColors.darkBorder
-                    : AppColors.neutral[100]!,
+                color: isDark ? GariLinkColors.darkBorder : GariLinkColors.neutral200,
               ),
             ),
             child: Row(
               children: [
-                const AppSkeleton(width: 80, height: 80, borderRadius: AppBorderRadius.sm),
-                const SizedBox(width: AppSpacing.base),
+                const AppSkeleton(width: 80, height: 80, borderRadius: GariLinkRadius.badge),
+                const SizedBox(width: GariLinkSpacing.lg),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const AppSkeleton(width: 150, height: 16),
-                      const SizedBox(height: AppSpacing.sm),
-                      const AppSkeleton(width: 100, height: 12),
-                      const SizedBox(height: AppSpacing.sm),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.between,
-                        children: const [
-                          AppSkeleton(width: 60, height: 12),
-                          AppSkeleton(width: 40, height: 12),
-                        ],
-                      ),
+                    children: const [
+                      AppSkeleton(width: 150, height: 16),
+                      SizedBox(height: GariLinkSpacing.sm),
+                      AppSkeleton(width: 100, height: 12),
+                      SizedBox(height: GariLinkSpacing.sm),
                     ],
                   ),
                 ),
@@ -85,6 +59,48 @@ class AppSkeleton extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _AppSkeletonState extends State<AppSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? GariLinkColors.neutral700 : GariLinkColors.neutral200;
+
+    return FadeTransition(
+      opacity: _animation,
+      child: Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: baseColor,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+        ),
+      ),
     );
   }
 }

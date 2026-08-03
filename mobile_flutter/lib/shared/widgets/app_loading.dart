@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/tokens.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/spacing.dart';
+import '../../core/theme/radius.dart';
 
 class AppLoading extends StatelessWidget {
   final bool isOverlay;
@@ -12,8 +14,9 @@ class AppLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final indicator = CircularProgressIndicator(
-      valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+      valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.secondary),
     );
 
     if (isOverlay) {
@@ -21,12 +24,10 @@ class AppLoading extends StatelessWidget {
         color: Colors.black54,
         alignment: Alignment.center,
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: const EdgeInsets.all(GariLinkSpacing.xl),
           decoration: BoxDecoration(
-            color: theme.brightness == Brightness.dark
-                ? AppColors.darkSurface
-                : AppColors.neutral[0],
-            borderRadius: AppBorderRadius.mdBorderRadius,
+            color: isDark ? GariLinkColors.darkSurface : GariLinkColors.surface,
+            borderRadius: GariLinkRadius.cardBorderRadius,
           ),
           child: indicator,
         ),
@@ -35,7 +36,7 @@ class AppLoading extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(GariLinkSpacing.xl),
         child: indicator,
       ),
     );
