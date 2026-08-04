@@ -5,7 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './core/errors/global-exception.filter';
 
-async function bootstrap(): Promise<void> {
+async function bootstrap(): Promise<any> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
