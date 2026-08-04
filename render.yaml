@@ -4,28 +4,17 @@ services:
     runtime: node
     rootDir: backend
     buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && npm run start:prod
-    healthCheckPath: /api/v1/me
+    startCommand: node dist/src/main.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: DATABASE_URL
-        fromDatabase:
-          name: garilink-postgres-db
-          property: connectionString
-      - key: JWT_SECRET
-        generateValue: true
+        value: postgresql://postgres.orlrgjjbmnjxqbhheago:Kibaja0658%23@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?pgbouncer=true
+      - key: JWT_ACCESS_SECRET
+        value: garilink_access_secret_key_minimum_32_chars_secure
       - key: JWT_REFRESH_SECRET
-        generateValue: true
-      - key: JWT_EXPIRATION
+        value: garilink_refresh_secret_key_minimum_32_chars_secure
+      - key: JWT_ACCESS_EXPIRES_IN
         value: 15m
-      - key: JWT_REFRESH_EXPIRATION
-        value: 7d
-
-databases:
-  - name: garilink-postgres-db
-    databaseName: garilink
-    user: garilink_admin
-    plan: free
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
