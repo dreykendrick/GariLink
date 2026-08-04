@@ -1,10 +1,31 @@
-// Plain JS handler - loads from pre-built dist/ compiled by Vercel's buildCommand
-// No TypeScript compilation at function load time
-const path = require('path');
-const DIST_PATH = path.join(__dirname, '..', 'dist');
+// Static top-level requires so Vercel NFT bundler traces all dependencies
+require('reflect-metadata');
+const NestFactory = require('@nestjs/core').NestFactory;
+const ExpressAdapter = require('@nestjs/platform-express').ExpressAdapter;
+const express = require('express');
+// Force NFT to trace all dist modules via explicit requires
+const AppModule = require('../dist/app.module').AppModule;
 
 let app = null;
 let bootError = null;
+let booting = null;
+
+async function boot() {
+  const expressApp = express();
+  const nestApp = await NestFactory.create(
+    AppModule,
+    new ExpressAdapter(expressApp),
+    { logger: false }
+  );
+  nestApp.setGlobalPrefix('api/v1');
+  nestApp.enableCors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+  await nestApp.init();
+  return expressApp;
+}
 
 module.exports = async (req, res) => {
   if (bootError) {
@@ -12,44 +33,22 @@ module.exports = async (req, res) => {
       statusCode: 500,
       error: 'NestJS Boot Failed',
       message: bootError.message || String(bootError),
-      stack: bootError.stack || null,
     });
   }
 
   if (!app) {
-    try {
-      require('reflect-metadata');
-      const { NestFactory } = require('@nestjs/core');
-      const { ExpressAdapter } = require('@nestjs/platform-express');
-      const express = require('express');
-      const { AppModule } = require(path.join(DIST_PATH, 'app.module'));
-
-      const expressApp = express();
-      const nestApp = await NestFactory.create(
-        AppModule,
-        new ExpressAdapter(expressApp),
-        { logger: false }
-      );
-
-      nestApp.setGlobalPrefix('api/v1');
-      nestApp.enableCors({
-        origin: '*',
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-      });
-
-      await nestApp.init();
-      app = expressApp;
-    } catch (err) {
-      bootError = err;
-      console.error('[GariLink] Fatal boot error:', err.message, err.stack);
-      return res.status(500).json({
-        statusCode: 500,
-        error: 'NestJS Boot Failed',
-        message: err.message || String(err),
-        stack: err.stack || null,
-      });
+    if (!booting) {
+      booting = boot().then(a => { app = a; }).catch(e => { bootError = e; });
     }
+    await booting;
+  }
+
+  if (bootError) {
+    return res.status(500).json({
+      statusCode: 500,
+      error: 'NestJS Boot Failed',
+      message: bootError.message || String(bootError),
+    });
   }
 
   return app(req, res);
