@@ -40,6 +40,15 @@ async function bootstrap() {
 }
 
 export default async function handler(req: any, res: any) {
-  await bootstrap();
-  server(req, res);
+  try {
+    await bootstrap();
+    server(req, res);
+  } catch (error: any) {
+    console.error('Vercel serverless error:', error);
+    res.status(500).json({
+      statusCode: 500,
+      message: 'Serverless initialization error',
+      error: error.message || String(error),
+    });
+  }
 }
