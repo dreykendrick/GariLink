@@ -1,54 +1,57 @@
-// Minimal Vercel serverless handler - no NestJS dependency at module load time
-// This avoids the FUNCTION_INVOCATION_FAILED crash on Lambda cold start
+// Vercel Serverless Handler for NestJS GariLink API
+// All imports are dynamic to surface errors as JSON
 
 let app: any = null;
-
-async function getApp() {
-  if (app) return app;
-
-  // Lazy-load everything to avoid module-load crashes
-  try {
-    await import('reflect-metadata');
-    const { NestFactory } = await import('@nestjs/core');
-    const { ExpressAdapter } = await import('@nestjs/platform-express');
-    const express = (await import('express')).default;
-    const { AppModule } = await import('../src/app.module');
-
-    const expressApp = express();
-    const nestApp = await NestFactory.create(
-      AppModule,
-      new ExpressAdapter(expressApp),
-      { logger: false }
-    );
-
-    nestApp.setGlobalPrefix('api/v1');
-    nestApp.enableCors({
-      origin: '*',
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    });
-
-    await nestApp.init();
-    app = expressApp;
-    return app;
-  } catch (err: any) {
-    // Return error as Express handler so it reaches the client
-    const express = (await import('express')).default;
-    const errApp = express();
-    errApp.use((_req: any, res: any) => {
-      res.status(500).json({
-        statusCode: 500,
-        error: 'NestJS Boot Failed on Vercel',
-        message: err?.message ?? String(err),
-        stack: process.env.NODE_ENV !== 'production' ? err?.stack : undefined,
-      });
-    });
-    app = errApp;
-    return app;
-  }
-}
+let bootError: any = null;
 
 export default async function handler(req: any, res: any) {
-  const server = await getApp();
-  return server(req, res);
+  // If a previous boot failed, report it
+  if (bootError) {
+    return res.status(500).json({
+      statusCode: 500,
+      error: 'NestJS Boot Failed',
+      message: bootError?.message || String(bootError),
+      stack: bootError?.stack || null,
+    });
+  }
+
+  if (!app) {
+    try {
+      // Ensure Prisma query engine binary path is set for Lambda
+      process.env.PRISMA_QUERY_ENGINE_LIBRARY = undefined as any;
+
+      const { default: express } = await import('express');
+      const { NestFactory } = await import('@nestjs/core');
+      const { ExpressAdapter } = await import('@nestjs/platform-express');
+      const { AppModule } = await import('../src/app.module');
+
+      const expressApp = express();
+      const nestApp = await NestFactory.create(
+        AppModule,
+        new ExpressAdapter(expressApp),
+        { logger: false }
+      );
+
+      nestApp.setGlobalPrefix('api/v1');
+      nestApp.enableCors({
+        origin: '*',
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+      });
+
+      await nestApp.init();
+      app = expressApp;
+    } catch (err: any) {
+      bootError = err;
+      console.error('[GariLink] Fatal boot error:', err?.message, err?.stack);
+      return res.status(500).json({
+        statusCode: 500,
+        error: 'NestJS Boot Failed',
+        message: err?.message || String(err),
+        stack: err?.stack || null,
+      });
+    }
+  }
+
+  return app(req, res);
 }
