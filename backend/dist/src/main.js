@@ -5,10 +5,10 @@ require("reflect-metadata");
 const core_1 = require("@nestjs/core");
 const app_module_1 = require("./app.module");
 const platform_express_1 = require("@nestjs/platform-express");
-const express_1 = require("express");
+const express = require("express");
 const common_1 = require("@nestjs/common");
 const global_exception_filter_1 = require("./core/errors/global-exception.filter");
-const server = (0, express_1.default)();
+const server = express();
 let isInitialized = false;
 const createServer = async () => {
     if (!isInitialized) {

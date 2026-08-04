@@ -30,11 +30,13 @@ const vehicle_module_1 = require("./modules/vehicle/vehicle.module");
 const marketplace_module_1 = require("./modules/marketplace/marketplace.module");
 const notifications_module_1 = require("./modules/notifications/notifications.module");
 const rental_module_1 = require("./modules/rental/rental.module");
+const app_controller_1 = require("./app.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
+        controllers: [app_controller_1.AppController],
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,

@@ -23,7 +23,10 @@ import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RentalModule } from './modules/rental/rental.module';
 
+import { AppController } from './app.controller';
+
 @Module({
+  controllers: [AppController],
   imports: [
     // Config (global)
     ConfigModule.forRoot({
