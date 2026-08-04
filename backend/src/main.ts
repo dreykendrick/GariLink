@@ -61,14 +61,11 @@ async function bootstrap(): Promise<void> {
   }
 
   const port = config.get<number>('app.app.port') ?? 3000;
-  await app.listen(port);
-  logger.log(`🚀 GariLink API running on http://localhost:${port}/${prefix}`);
-  if (env !== 'production') {
-    logger.log(`📚 Swagger docs at http://localhost:${port}/${prefix}/docs`);
+  if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+    await app.listen(port);
+    logger.log(`🚀 GariLink API running on http://localhost:${port}/${prefix}`);
   }
+  return app;
 }
 
-bootstrap().catch((err) => {
-  console.error('Failed to start GariLink API:', err);
-  process.exit(1);
-});
+export default bootstrap();
