@@ -12,12 +12,12 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 class ApiClient {
   final StorageService _storageService;
   late final Dio _dio;
-  late final Dio _refreshDio;
 
-  static const String _defaultBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://gari-link.vercel.app/api/v1',
-  );
+  static const String supabaseUrl = 'https://orlrgjjbmnjxqbhheago.supabase.co';
+  static const String supabaseAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ybHJnampibW5qeHFiaGhlYWdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3OTQ0MzAsImV4cCI6MjEwMTM3MDQzMH0.0sLlOKNF20Nf0qDBzgVaTozHVA8nEv4HbKeCl2bDOuo';
+
+  static const String _defaultBaseUrl = '$supabaseUrl/rest/v1';
 
   ApiClient(this._storageService, {String? baseUrl}) {
     final finalBaseUrl = baseUrl ?? _defaultBaseUrl;
@@ -30,18 +30,8 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-        },
-      ),
-    );
-
-    _refreshDio = Dio(
-      BaseOptions(
-        baseUrl: finalBaseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          'apikey': supabaseAnonKey,
+          'Authorization': 'Bearer $supabaseAnonKey',
         },
       ),
     );
@@ -55,51 +45,18 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _storageService.getAccessToken();
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+          final userToken = await _storageService.getAccessToken();
+          if (userToken != null && userToken.isNotEmpty) {
+            // Include user session bearer token if available
+            options.headers['Authorization'] = 'Bearer $userToken';
+          } else {
+            options.headers['Authorization'] = 'Bearer $supabaseAnonKey';
           }
+          options.headers['apikey'] = supabaseAnonKey;
           return handler.next(options);
         },
         onError: (options, handler) async {
           final error = options;
-          final response = error.response;
-
-          // Silent JWT refresh handler for 401 errors
-          if (response != null && response.statusCode == 401) {
-            final refreshToken = await _storageService.getRefreshToken();
-            if (refreshToken != null) {
-              try {
-                // Request token refresh using refreshDio to avoid cyclic loops
-                final refreshResponse = await _refreshDio.post(
-                  '/auth/refresh',
-                  data: {'refreshToken': refreshToken},
-                );
-
-                if (refreshResponse.statusCode == 201 || refreshResponse.statusCode == 200) {
-                  final data = refreshResponse.data as Map<String, dynamic>;
-                  final newAccessToken = data['accessToken'] as String;
-                  final newRefreshToken = data['refreshToken'] as String;
-
-                  // Save new credentials
-                  await _storageService.setTokens(newAccessToken, newRefreshToken);
-
-                  // Retry the original request with the new bearer token
-                  error.requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
-                  
-                  final retryResponse = await _dio.fetch(error.requestOptions);
-                  return handler.resolve(retryResponse);
-                }
-              } catch (_) {
-                // Refresh failed: clear storage credentials to trigger Welcome redirect
-                await _storageService.clearTokens();
-              }
-            } else {
-              await _storageService.clearTokens();
-            }
-          }
-
-          // Map other response/network exceptions to Domain AppException
           return handler.next(
             DioException(
               requestOptions: error.requestOptions,
@@ -128,7 +85,7 @@ class ApiClient {
     if (response != null) {
       final statusCode = response.statusCode;
       final data = response.data;
-      String message = 'An unexpected server error occurred';
+      String message = 'An error occurred';
       String? errorCode;
 
       if (data is Map<String, dynamic>) {
@@ -157,7 +114,6 @@ class ApiClient {
     return AppException(error.message ?? 'An unknown error occurred');
   }
 
-  // HTTP helper utilities mapping directly to API call shapes
   Future<T> get<T>(String path, {Map<String, dynamic>? queryParameters, Options? options}) async {
     try {
       final response = await _dio.get<T>(path, queryParameters: queryParameters, options: options);

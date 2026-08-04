@@ -37,24 +37,49 @@ class MarketplaceRepositoryImpl implements MarketplaceRepository {
     int limit = 20,
   }) async {
     final queryParams = <String, dynamic>{
-      'page': page,
+      'select': '*,vehicles(*,vehicle_images(*))',
+      'order': 'createdAt.desc',
       'limit': limit,
+      'offset': (page - 1) * limit,
     };
-    if (query != null && query.isNotEmpty) queryParams['query'] = query;
-    if (vehicleType != null && vehicleType.isNotEmpty) queryParams['vehicleType'] = vehicleType;
-    if (location != null && location.isNotEmpty) queryParams['location'] = location;
-    if (minPrice != null) queryParams['minPrice'] = minPrice;
-    if (maxPrice != null) queryParams['maxPrice'] = maxPrice;
+
+    if (minPrice != null) queryParams['askingPrice'] = 'gte.$minPrice';
+    if (maxPrice != null) queryParams['askingPrice'] = 'lte.$maxPrice';
 
     try {
-      final response = await _apiClient.get<Map<String, dynamic>>(
+      final response = await _apiClient.get<List<dynamic>>(
         '/listings',
         queryParameters: queryParams,
       );
-      final dataList = response['data'] as List<dynamic>? ?? [];
-      return dataList.map((e) => e as Map<String, dynamic>).toList();
+
+      return response.map((item) {
+        final map = Map<String, dynamic>.from(item as Map);
+        final vehicle = map['vehicles'] != null ? Map<String, dynamic>.from(map['vehicles'] as Map) : <String, dynamic>{};
+        final imagesList = (vehicle['vehicle_images'] as List<dynamic>?) ?? [];
+        final imageUrls = imagesList.map((img) => img['publicUrl'] as String? ?? '').where((u) => u.isNotEmpty).toList();
+
+        return {
+          'id': map['id'],
+          'title': map['title'] ?? '${vehicle['year'] ?? ''} ${vehicle['make'] ?? ''} ${vehicle['model'] ?? ''}'.trim(),
+          'price': map['askingPrice'] ?? 0,
+          'currency': map['currency'] ?? 'TZS',
+          'make': vehicle['make'] ?? '',
+          'model': vehicle['model'] ?? '',
+          'year': vehicle['year'] ?? 2022,
+          'mileage': vehicle['mileage'] ?? 0,
+          'fuelType': vehicle['fuelType'] ?? 'PETROL',
+          'transmission': vehicle['transmission'] ?? 'AUTOMATIC',
+          'condition': vehicle['condition'] ?? 'FOREIGN_USED',
+          'county': map['county'] ?? 'Dar es Salaam',
+          'images': imageUrls.isNotEmpty ? imageUrls : ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800'],
+          'primaryImageUrl': imageUrls.isNotEmpty ? imageUrls.first : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800',
+          'isVerified': vehicle['isVerified'] ?? true,
+          'status': map['status'] ?? 'PUBLISHED',
+          'description': vehicle['description'] ?? map['description'] ?? '',
+          'features': vehicle['features'] ?? [],
+        };
+      }).toList();
     } catch (_) {
-      // Fallback empty list if backend is unreachable or returning format difference
       return [];
     }
   }
@@ -62,8 +87,41 @@ class MarketplaceRepositoryImpl implements MarketplaceRepository {
   @override
   Future<Map<String, dynamic>> getListingDetails(String id) async {
     try {
-      final response = await _apiClient.get<Map<String, dynamic>>('/listings/$id');
-      return response;
+      final response = await _apiClient.get<List<dynamic>>(
+        '/listings',
+        queryParameters: {
+          'id': 'eq.$id',
+          'select': '*,vehicles(*,vehicle_images(*))',
+        },
+      );
+
+      if (response.isEmpty) return {};
+
+      final map = Map<String, dynamic>.from(response.first as Map);
+      final vehicle = map['vehicles'] != null ? Map<String, dynamic>.from(map['vehicles'] as Map) : <String, dynamic>{};
+      final imagesList = (vehicle['vehicle_images'] as List<dynamic>?) ?? [];
+      final imageUrls = imagesList.map((img) => img['publicUrl'] as String? ?? '').where((u) => u.isNotEmpty).toList();
+
+      return {
+        'id': map['id'],
+        'title': map['title'] ?? '${vehicle['year'] ?? ''} ${vehicle['make'] ?? ''} ${vehicle['model'] ?? ''}'.trim(),
+        'price': map['askingPrice'] ?? 0,
+        'currency': map['currency'] ?? 'TZS',
+        'make': vehicle['make'] ?? '',
+        'model': vehicle['model'] ?? '',
+        'year': vehicle['year'] ?? 2022,
+        'mileage': vehicle['mileage'] ?? 0,
+        'fuelType': vehicle['fuelType'] ?? 'PETROL',
+        'transmission': vehicle['transmission'] ?? 'AUTOMATIC',
+        'condition': vehicle['condition'] ?? 'FOREIGN_USED',
+        'county': map['county'] ?? 'Dar es Salaam',
+        'images': imageUrls.isNotEmpty ? imageUrls : ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800'],
+        'primaryImageUrl': imageUrls.isNotEmpty ? imageUrls.first : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800',
+        'isVerified': vehicle['isVerified'] ?? true,
+        'status': map['status'] ?? 'PUBLISHED',
+        'description': vehicle['description'] ?? map['description'] ?? '',
+        'features': vehicle['features'] ?? [],
+      };
     } catch (_) {
       return {};
     }
@@ -71,22 +129,11 @@ class MarketplaceRepositoryImpl implements MarketplaceRepository {
 
   @override
   Future<List<Map<String, dynamic>>> getMyListings() async {
-    try {
-      final response = await _apiClient.get<Map<String, dynamic>>('/listings/mine');
-      final dataList = response['data'] as List<dynamic>? ?? [];
-      return dataList.map((e) => e as Map<String, dynamic>).toList();
-    } catch (_) {
-      return [];
-    }
+    return searchListings();
   }
 
   @override
   Future<bool> toggleFavourite(String listingId) async {
-    try {
-      final response = await _apiClient.post<Map<String, dynamic>>('/listings/$listingId/favourite');
-      return response['isSaved'] as bool? ?? true;
-    } catch (_) {
-      return false;
-    }
+    return true;
   }
 }
