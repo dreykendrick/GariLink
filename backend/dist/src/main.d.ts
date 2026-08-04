@@ -1,2 +1,2 @@
-declare const _default: Promise<any>;
-export default _default;
+import 'reflect-metadata';
+export declare const createServer: () => Promise<import("express-serve-static-core").Express>;

@@ -1,59 +1,67 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.createServer = void 0;
+require("reflect-metadata");
 const core_1 = require("@nestjs/core");
-const common_1 = require("@nestjs/common");
-const config_1 = require("@nestjs/config");
-const swagger_1 = require("@nestjs/swagger");
 const app_module_1 = require("./app.module");
+const platform_express_1 = require("@nestjs/platform-express");
+const express_1 = require("express");
+const common_1 = require("@nestjs/common");
 const global_exception_filter_1 = require("./core/errors/global-exception.filter");
-async function bootstrap() {
-    const app = await core_1.NestFactory.create(app_module_1.AppModule, { bufferLogs: true });
-    const config = app.get(config_1.ConfigService);
-    const logger = new common_1.Logger('Bootstrap');
-    const prefix = config.get('app.app.prefix') ?? 'api/v1';
-    app.setGlobalPrefix(prefix);
-    const corsOrigins = config.get('app.app.corsOrigins') ?? ['*'];
-    app.enableCors({
-        origin: corsOrigins,
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    });
-    app.useGlobalFilters(new global_exception_filter_1.GlobalExceptionFilter());
-    app.useGlobalPipes(new common_1.ValidationPipe({
-        whitelist: true,
-        transform: true,
-        forbidNonWhitelisted: true,
-        transformOptions: { enableImplicitConversion: true },
-    }));
-    const env = config.get('app.app.env') ?? 'development';
-    if (env !== 'production') {
-        const swaggerConfig = new swagger_1.DocumentBuilder()
-            .setTitle('GariLink API')
-            .setDescription('GariLink Automotive Platform API')
-            .setVersion('1.0')
-            .addBearerAuth()
-            .addTag('Auth', 'Authentication and authorization')
-            .addTag('Profile', 'User profile management')
-            .addTag('Sessions', 'Session management')
-            .addTag('Capabilities', 'User capability management')
-            .addTag('Workspaces', 'Workspace management')
-            .addTag('Vehicles', 'Vehicle core domain')
-            .addTag('Listings', 'Marketplace listings')
-            .addTag('Organizations', 'Organization management')
-            .addTag('Health', 'Health check')
-            .build();
-        const document = swagger_1.SwaggerModule.createDocument(app, swaggerConfig);
-        swagger_1.SwaggerModule.setup(`${prefix}/docs`, app, document, {
-            swaggerOptions: { persistAuthorization: true },
+const server = (0, express_1.default)();
+let isInitialized = false;
+const createServer = async () => {
+    if (!isInitialized) {
+        const app = await core_1.NestFactory.create(app_module_1.AppModule, new platform_express_1.ExpressAdapter(server), { bufferLogs: true });
+        app.setGlobalPrefix('api/v1');
+        app.enableCors({
+            origin: '*',
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
         });
+        app.useGlobalFilters(new global_exception_filter_1.GlobalExceptionFilter());
+        app.useGlobalPipes(new common_1.ValidationPipe({
+            whitelist: true,
+            transform: true,
+            forbidNonWhitelisted: true,
+            transformOptions: { enableImplicitConversion: true },
+        }));
+        await app.init();
+        isInitialized = true;
     }
-    const port = config.get('app.app.port') ?? 3000;
-    if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
-        await app.listen(port);
-        logger.log(`🚀 GariLink API running on http://localhost:${port}/${prefix}`);
+    return server;
+};
+exports.createServer = createServer;
+async function bootstrap() {
+    const logger = new common_1.Logger('Bootstrap');
+    try {
+        const app = await core_1.NestFactory.create(app_module_1.AppModule, { bufferLogs: true });
+        app.setGlobalPrefix('api/v1');
+        app.enableCors({
+            origin: '*',
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        });
+        app.useGlobalFilters(new global_exception_filter_1.GlobalExceptionFilter());
+        app.useGlobalPipes(new common_1.ValidationPipe({
+            whitelist: true,
+            transform: true,
+            forbidNonWhitelisted: true,
+            transformOptions: { enableImplicitConversion: true },
+        }));
+        const port = parseInt(process.env.PORT ?? '3000', 10);
+        await app.listen(port, '0.0.0.0');
+        logger.log(`🚀 GariLink API running on port ${port}`);
+        logger.log(`📡 Environment: ${process.env.NODE_ENV}`);
     }
-    return app;
+    catch (err) {
+        logger.error('❌ Failed to start GariLink API', err);
+        process.exit(1);
+    }
 }
-exports.default = bootstrap();
+if (!process.env.VERCEL) {
+    bootstrap();
+}
 //# sourceMappingURL=main.js.map
