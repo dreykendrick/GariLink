@@ -8,11 +8,11 @@ export const envValidationSchema = Joi.object({
   API_PREFIX: Joi.string().default('api/v1'),
 
   // Database
-  DATABASE_URL: Joi.string().required(),
+  DATABASE_URL: Joi.string().default('postgresql://postgres.orlrgjjbmnjxqbhheago:Kibaja0658%23@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?pgbouncer=true'),
 
   // JWT
-  JWT_ACCESS_SECRET: Joi.string().min(32).required(),
-  JWT_REFRESH_SECRET: Joi.string().min(32).required(),
+  JWT_ACCESS_SECRET: Joi.string().min(32).default('dev_access_secret_change_me_in_production_minimum_32_chars'),
+  JWT_REFRESH_SECRET: Joi.string().min(32).default('dev_refresh_secret_change_me_in_production_minimum_32_chars'),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('30d'),
 
@@ -48,5 +48,5 @@ export const envValidationSchema = Joi.object({
     .default('console'),
 
   // CORS
-  CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
+  CORS_ORIGINS: Joi.string().default('*'),
 });
