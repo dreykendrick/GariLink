@@ -1,4 +1,4 @@
-const { createServer } = require('../dist/src/main');
+const { createServer } = require('../dist/main');
 
 let server;
 
