@@ -1,12 +1,13 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
+  "outputDirectory": ".",
   "builds": [
     {
       "src": "api/handler.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["dist/**"]
+        "includeFiles": ["dist/**", "node_modules/@prisma/client/**", "node_modules/.prisma/**"]
       }
     },
     {

@@ -1,5 +1,7 @@
 // Plain JS handler - loads from pre-built dist/ compiled by Vercel's buildCommand
 // No TypeScript compilation at function load time
+const path = require('path');
+const DIST_PATH = path.join(__dirname, '..', 'dist');
 
 let app = null;
 let bootError = null;
@@ -20,7 +22,7 @@ module.exports = async (req, res) => {
       const { NestFactory } = require('@nestjs/core');
       const { ExpressAdapter } = require('@nestjs/platform-express');
       const express = require('express');
-      const { AppModule } = require('../dist/app.module');
+      const { AppModule } = require(path.join(DIST_PATH, 'app.module'));
 
       const expressApp = express();
       const nestApp = await NestFactory.create(
