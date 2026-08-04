@@ -1,9 +1,9 @@
 # Railway deployment configuration
-# https://railway.app
+# Root Directory must be set to "backend" in Railway Settings → Source
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install && npx prisma generate && npx nest build"
+buildCommand = "npx prisma generate && npm run build"
 
 [deploy]
 startCommand = "node dist/main"
