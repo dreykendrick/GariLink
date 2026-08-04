@@ -1,7 +1,7 @@
 .env
 .env.local
 .env.production
-dist/
+# dist/
 node_modules/
 uploads/
 *.log

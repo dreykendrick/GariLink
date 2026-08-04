@@ -1,0 +1,1 @@
+{"version":3,"file":"rental-started.event.js","sourceRoot":"","sources":["../../../../../../src/modules/rental/domain/events/rental-started.event.ts"],"names":[],"mappings":";;;AAAA,mFAA0E;AAE1E,MAAa,kBAAmB,SAAQ,+BAAW;IACjD,YAAY,WAAmB;QAC7B,KAAK,CAAC,WAAW,CAAC,CAAC;IACrB,CAAC;IACD,IAAI,SAAS,KAAa,OAAO,oBAAoB,CAAC,CAAC,CAAC;CACzD;AALD,gDAKC"}

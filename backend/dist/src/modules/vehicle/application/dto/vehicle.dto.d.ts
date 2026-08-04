@@ -1,0 +1,74 @@
+import { VehicleStatus, FuelType, Transmission, BodyType, VehicleType, Drivetrain, VehicleCondition } from '@prisma/client';
+export declare class CreateVehicleDto {
+    workspaceId: string;
+    type: VehicleType;
+    bodyType: BodyType;
+    make: string;
+    model: string;
+    year: number;
+    trim?: string;
+    fuelType: FuelType;
+    transmission: Transmission;
+    drivetrain: Drivetrain;
+    engineCapacity?: number;
+    engineNumber?: string;
+    horsepower?: number;
+    torque?: number;
+    fuelTankCapacity?: number;
+    groundClearance?: number;
+    wheelbase?: number;
+    doors?: number;
+    seats?: number;
+    condition: VehicleCondition;
+    mileage: number;
+    exteriorColor?: string;
+    interiorColor?: string;
+    vin?: string;
+    registrationNumber?: string;
+    features?: string[];
+    description?: string;
+    primaryImageId?: string;
+}
+export declare class UpdateVehicleDto {
+    type?: VehicleType;
+    bodyType?: BodyType;
+    make?: string;
+    model?: string;
+    year?: number;
+    trim?: string;
+    fuelType?: FuelType;
+    transmission?: Transmission;
+    drivetrain?: Drivetrain;
+    engineCapacity?: number;
+    engineNumber?: string;
+    horsepower?: number;
+    torque?: number;
+    fuelTankCapacity?: number;
+    groundClearance?: number;
+    wheelbase?: number;
+    doors?: number;
+    seats?: number;
+    condition?: VehicleCondition;
+    mileage?: number;
+    exteriorColor?: string;
+    interiorColor?: string;
+    vin?: string;
+    registrationNumber?: string;
+    features?: string[];
+    description?: string;
+    primaryImageId?: string;
+    status?: VehicleStatus;
+}
+export declare class VehicleQueryDto {
+    page?: number;
+    limit?: number;
+    workspaceId?: string;
+    make?: string;
+    model?: string;
+    yearMin?: number;
+    yearMax?: number;
+    fuelType?: FuelType;
+    transmission?: Transmission;
+    bodyType?: BodyType;
+    status?: VehicleStatus;
+}

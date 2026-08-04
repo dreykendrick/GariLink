@@ -1,0 +1,40 @@
+import { Entity } from '../../../../shared/domain/entity.base';
+export type MediaType = 'PHOTO' | 'VIDEO' | 'DOCUMENT' | 'OTHER';
+export declare class Media extends Entity<string> {
+    readonly uploaderId: string;
+    readonly entityType: string;
+    readonly entityId: string;
+    readonly subType: string;
+    readonly filename: string;
+    readonly originalName: string;
+    readonly mimeType: string;
+    readonly sizeBytes: number;
+    readonly storageKey: string;
+    publicUrl: string;
+    isPublic: boolean;
+    readonly width: number | null;
+    readonly height: number | null;
+    readonly durationSeconds: number | null;
+    thumbnailUrl: string | null;
+    readonly pageCount: number | null;
+    readonly checksum: string | null;
+    readonly expiresAt: Date | null;
+    constructor(id: string, uploaderId: string, entityType: string, entityId: string, subType: string, filename: string, originalName: string, mimeType: string, sizeBytes: number, storageKey: string, publicUrl: string, isPublic: boolean, width: number | null, height: number | null, durationSeconds: number | null, thumbnailUrl: string | null, pageCount: number | null, checksum: string | null, expiresAt: Date | null, createdAt?: Date, updatedAt?: Date);
+    get mediaType(): MediaType;
+    static create(params: {
+        id: string;
+        uploaderId: string;
+        entityType: string;
+        entityId: string;
+        subType: string;
+        filename: string;
+        originalName: string;
+        mimeType: string;
+        sizeBytes: number;
+        storageKey: string;
+        publicUrl: string;
+        isPublic?: boolean;
+        width?: number;
+        height?: number;
+    }): Media;
+}

@@ -1,0 +1,53 @@
+import { AggregateRoot } from '../../../../shared/domain/aggregate-root.base';
+import { UserRole } from '@prisma/client';
+import { Email } from '../value-objects/email.vo';
+import { PhoneNumber } from '../value-objects/phone-number.vo';
+export interface UserProps {
+    email: Email | null;
+    phoneNumber: PhoneNumber;
+    passwordHash: string;
+    roles: UserRole[];
+    isEmailVerified: boolean;
+    isPhoneVerified: boolean;
+    isActive: boolean;
+    lastLoginAt: Date | null;
+    failedLoginAttempts: number;
+    lockedUntil: Date | null;
+}
+export declare class User extends AggregateRoot<string> {
+    private _email;
+    private _phoneNumber;
+    private _passwordHash;
+    private _roles;
+    private _isEmailVerified;
+    private _isPhoneVerified;
+    private _isActive;
+    private _lastLoginAt;
+    private _failedLoginAttempts;
+    private _lockedUntil;
+    constructor(id: string, props: UserProps, createdAt?: Date, updatedAt?: Date);
+    get email(): Email | null;
+    get phoneNumber(): PhoneNumber;
+    get passwordHash(): string;
+    get roles(): UserRole[];
+    get isEmailVerified(): boolean;
+    get isPhoneVerified(): boolean;
+    get isActive(): boolean;
+    get lastLoginAt(): Date | null;
+    get failedLoginAttempts(): number;
+    get lockedUntil(): Date | null;
+    static create(props: UserProps, id?: string): User;
+    verifyPhone(): void;
+    verifyEmail(): void;
+    updateEmail(email: Email): void;
+    recordFailedLogin(): void;
+    lock(until: Date): void;
+    unlock(): void;
+    isLocked(): boolean;
+    updateLastLogin(): void;
+    deactivate(): void;
+    activate(): void;
+    hasRole(role: UserRole): boolean;
+    addRole(role: UserRole): void;
+    removeRole(role: UserRole): void;
+}
