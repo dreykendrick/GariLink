@@ -1,12 +1,16 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
   "builds": [
     {
-      "src": "api/test.js",
-      "use": "@vercel/node"
+      "src": "api/handler.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["dist/**"]
+      }
     },
     {
-      "src": "api/index.ts",
+      "src": "api/test.js",
       "use": "@vercel/node"
     }
   ],
@@ -17,7 +21,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "api/index.ts"
+      "dest": "api/handler.js"
     }
   ]
 }
