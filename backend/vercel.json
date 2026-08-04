@@ -5,7 +5,10 @@
       "src": "api/index.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["dist/**", "node_modules/@prisma/client/**", "prisma/schema.prisma"]
+        "includeFiles": [
+          "../dist/**",
+          "../prisma/schema.prisma"
+        ]
       }
     }
   ],
