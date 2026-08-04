@@ -16,7 +16,7 @@ class ApiClient {
 
   static const String _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://gari-link-prjfutz60-dreys-projects-e4e763b7.vercel.app/api/v1',
+    defaultValue: 'https://gari-link.vercel.app/api/v1',
   );
 
   ApiClient(this._storageService, {String? baseUrl}) {
