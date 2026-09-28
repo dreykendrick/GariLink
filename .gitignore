@@ -4,6 +4,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 package-lock.json
+!supabase/package-lock.json
+supabase/.temp/
+supabase/.branches/
 
 # Expo / React Native
 .expo/
@@ -15,7 +18,16 @@ web-build/
 *.apk
 *.aar
 *.keystore
+*.jks
+**/key.properties
+*.p12
+*.pem
+*.key
+*service-account*.json
+.evaluation-media-review/
+supabase/evaluation-media/
 .gradle/
+.gradle-cache/
 build/
 app/build/
 .cxx/

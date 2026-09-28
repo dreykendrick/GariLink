@@ -1,12 +1,12 @@
-import { AggregateRoot } from '../../../../shared/domain/aggregate-root.base';
-import { RentalStatus, Currency } from '@prisma/client';
-import { RentalApprovedEvent } from '../events/rental-approved.event';
-import { RentalRejectedEvent } from '../events/rental-rejected.event';
-import { RentalCancelledEvent } from '../events/rental-cancelled.event';
-import { RentalReadyEvent } from '../events/rental-ready.event';
-import { RentalStartedEvent } from '../events/rental-started.event';
-import { RentalCompletedEvent } from '../events/rental-completed.event';
-import { InvalidRentalTransitionError } from '../errors/rental.errors';
+import { AggregateRoot } from "../../../../shared/domain/aggregate-root.base";
+import { RentalStatus, Currency } from "@prisma/client";
+import { RentalApprovedEvent } from "../events/rental-approved.event";
+import { RentalRejectedEvent } from "../events/rental-rejected.event";
+import { RentalCancelledEvent } from "../events/rental-cancelled.event";
+import { RentalReadyEvent } from "../events/rental-ready.event";
+import { RentalStartedEvent } from "../events/rental-started.event";
+import { RentalCompletedEvent } from "../events/rental-completed.event";
+import { InvalidRentalTransitionError } from "../errors/rental.errors";
 
 export interface RentalRequestProps {
   customerId: string;
@@ -25,25 +25,61 @@ export interface RentalRequestProps {
 }
 
 export class RentalRequest extends AggregateRoot<string> {
+  readonly originalStatus: RentalStatus;
   private _status: RentalStatus;
   private _props: RentalRequestProps;
 
-  constructor(id: string, props: RentalRequestProps, createdAt?: Date, updatedAt?: Date) {
+  constructor(
+    id: string,
+    props: RentalRequestProps,
+    createdAt?: Date,
+    updatedAt?: Date,
+  ) {
     super(id, createdAt, updatedAt);
     this._status = props.status;
+    this.originalStatus = props.status;
     this._props = props;
   }
 
-  get status(): RentalStatus { return this._status; }
-  get customerId(): string { return this._props.customerId; }
-  get workspaceId(): string { return this._props.workspaceId; }
-  get vehicleId(): string { return this._props.vehicleId; }
-  get listingId(): string { return this._props.listingId; }
-  get startDate(): Date { return this._props.startDate; }
-  get endDate(): Date { return this._props.endDate; }
+  get status(): RentalStatus {
+    return this._status;
+  }
+  get customerId(): string {
+    return this._props.customerId;
+  }
+  get workspaceId(): string {
+    return this._props.workspaceId;
+  }
+  get vehicleId(): string {
+    return this._props.vehicleId;
+  }
+  get listingId(): string {
+    return this._props.listingId;
+  }
+  get startDate(): Date {
+    return this._props.startDate;
+  }
+  get endDate(): Date {
+    return this._props.endDate;
+  }
+  get dailyRate(): number {
+    return this._props.dailyRate;
+  }
+  get currency(): Currency {
+    return this._props.currency;
+  }
+  get totalAmount(): number {
+    return this._props.totalAmount;
+  }
+  get depositAmount(): number | null {
+    return this._props.depositAmount;
+  }
 
   approve(reason?: string): void {
-    if (this._status !== RentalStatus.REQUESTED && this._status !== RentalStatus.UNDER_REVIEW) {
+    if (
+      this._status !== RentalStatus.REQUESTED &&
+      this._status !== RentalStatus.UNDER_REVIEW
+    ) {
       throw new InvalidRentalTransitionError();
     }
     this._status = RentalStatus.APPROVED;
@@ -52,7 +88,10 @@ export class RentalRequest extends AggregateRoot<string> {
   }
 
   reject(reason?: string): void {
-    if (this._status !== RentalStatus.REQUESTED && this._status !== RentalStatus.UNDER_REVIEW) {
+    if (
+      this._status !== RentalStatus.REQUESTED &&
+      this._status !== RentalStatus.UNDER_REVIEW
+    ) {
       throw new InvalidRentalTransitionError();
     }
     this._status = RentalStatus.REJECTED;
@@ -62,7 +101,13 @@ export class RentalRequest extends AggregateRoot<string> {
   }
 
   cancel(): void {
-    if (this._status === RentalStatus.COMPLETED || this._status === RentalStatus.ACTIVE) {
+    const cancellable: RentalStatus[] = [
+      RentalStatus.REQUESTED,
+      RentalStatus.UNDER_REVIEW,
+      RentalStatus.APPROVED,
+      RentalStatus.READY_FOR_PICKUP,
+    ];
+    if (!cancellable.includes(this._status)) {
       throw new InvalidRentalTransitionError();
     }
     this._status = RentalStatus.CANCELLED;

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:garilink_mobile/core/theme/theme.dart';
 
 class RatingWidget extends StatelessWidget {
   final double rating;
@@ -10,22 +9,20 @@ class RatingWidget extends StatelessWidget {
   final double textSize;
 
   const RatingWidget.small({
-    Key? key,
+    super.key,
     required this.rating,
     this.reviewCount,
     this.showCount = false,
-  })  : iconSize = 12.0,
-        textSize = 11.0,
-        super(key: key);
+  }) : iconSize = 12.0,
+       textSize = 11.0;
 
   const RatingWidget.large({
-    Key? key,
+    super.key,
     required this.rating,
     this.reviewCount,
     this.showCount = false,
-  })  : iconSize = 16.0,
-        textSize = 14.0,
-        super(key: key);
+  }) : iconSize = 16.0,
+       textSize = 14.0;
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +30,7 @@ class RatingWidget extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(
-          Icons.star,
-          size: iconSize,
-          color: const Color(0xFFFFC107),
-        ),
+        Icon(Icons.star, size: iconSize, color: const Color(0xFFFFC107)),
         const SizedBox(width: 4),
         Text(
           rating.toStringAsFixed(1),
@@ -62,4 +55,3 @@ class RatingWidget extends StatelessWidget {
     );
   }
 }
-

@@ -1,5 +1,5 @@
-import { RentalRequest as PrismaRentalRequest } from '@prisma/client';
-import { RentalRequest } from '../../domain/entities/rental-request.entity';
+import { RentalRequest as PrismaRentalRequest } from "@prisma/client";
+import { RentalRequest } from "../../domain/entities/rental-request.entity";
 
 export class RentalRequestMapper {
   static toDomain(raw: PrismaRentalRequest): RentalRequest {

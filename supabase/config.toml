@@ -1,0 +1,40 @@
+project_id = "garilink"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 100
+
+[db]
+port = 54322
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "ke.co.garilink.garilink_mobile://login-callback/"
+additional_redirect_urls = ["ke.co.garilink.garilink_mobile://login-callback/"]
+jwt_expiry = 900
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+minimum_password_length = 10
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = true
+max_frequency = "60s"
+otp_length = 6
+otp_expiry = 600
+
+# Configure the signed Send SMS hook in the Supabase dashboard after deployment.
+# No console SMS fallback or real SMS is enabled by this local config.
+[functions.beem-sms]
+verify_jwt = false
+
+# Public auth routes are inside this function. Private routes independently
+# validate the bearer token against Supabase Auth; never trust decoded JWTs.
+[functions.garilink-api]
+verify_jwt = false

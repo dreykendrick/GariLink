@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/api_client.dart';
+import '../../domain/marketplace_query.dart';
 
 final marketplaceRepositoryProvider = Provider<MarketplaceRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
@@ -7,18 +8,14 @@ final marketplaceRepositoryProvider = Provider<MarketplaceRepository>((ref) {
 });
 
 abstract class MarketplaceRepository {
-  Future<List<Map<String, dynamic>>> searchListings({
-    String? query,
-    String? vehicleType,
-    String? location,
-    double? minPrice,
-    double? maxPrice,
-    int page = 1,
-    int limit = 20,
-  });
+  Future<List<Map<String, dynamic>>> searchListings(MarketplaceQuery query);
   Future<Map<String, dynamic>> getListingDetails(String id);
   Future<List<Map<String, dynamic>>> getMyListings();
-  Future<bool> toggleFavourite(String listingId);
+  Future<List<Map<String, dynamic>>> getSavedListings();
+  Future<bool> setSaved(String listingId, bool saved);
+  Future<void> publishListing(String listingId);
+  Future<void> pauseListing(String listingId);
+  Future<void> archiveListing(String listingId);
 }
 
 class MarketplaceRepositoryImpl implements MarketplaceRepository {
@@ -27,113 +24,149 @@ class MarketplaceRepositoryImpl implements MarketplaceRepository {
   const MarketplaceRepositoryImpl(this._apiClient);
 
   @override
-  Future<List<Map<String, dynamic>>> searchListings({
-    String? query,
-    String? vehicleType,
-    String? location,
-    double? minPrice,
-    double? maxPrice,
-    int page = 1,
-    int limit = 20,
-  }) async {
+  Future<List<Map<String, dynamic>>> searchListings(
+    MarketplaceQuery query,
+  ) async {
     final queryParams = <String, dynamic>{
-      'select': '*,vehicles(*,vehicle_images(*))',
-      'order': 'createdAt.desc',
-      'limit': limit,
-      'offset': (page - 1) * limit,
+      'page': query.page,
+      'limit': query.limit,
+      'sort': query.sort.apiValue,
     };
 
-    if (minPrice != null) queryParams['askingPrice'] = 'gte.$minPrice';
-    if (maxPrice != null) queryParams['askingPrice'] = 'lte.$maxPrice';
-
-    try {
-      final response = await _apiClient.get<List<dynamic>>(
-        '/listings',
-        queryParameters: queryParams,
-      );
-
-      return response.map((item) {
-        final map = Map<String, dynamic>.from(item as Map);
-        final vehicle = map['vehicles'] != null ? Map<String, dynamic>.from(map['vehicles'] as Map) : <String, dynamic>{};
-        final imagesList = (vehicle['vehicle_images'] as List<dynamic>?) ?? [];
-        final imageUrls = imagesList.map((img) => img['publicUrl'] as String? ?? '').where((u) => u.isNotEmpty).toList();
-
-        return {
-          'id': map['id'],
-          'title': map['title'] ?? '${vehicle['year'] ?? ''} ${vehicle['make'] ?? ''} ${vehicle['model'] ?? ''}'.trim(),
-          'price': map['askingPrice'] ?? 0,
-          'currency': map['currency'] ?? 'TZS',
-          'make': vehicle['make'] ?? '',
-          'model': vehicle['model'] ?? '',
-          'year': vehicle['year'] ?? 2022,
-          'mileage': vehicle['mileage'] ?? 0,
-          'fuelType': vehicle['fuelType'] ?? 'PETROL',
-          'transmission': vehicle['transmission'] ?? 'AUTOMATIC',
-          'condition': vehicle['condition'] ?? 'FOREIGN_USED',
-          'county': map['county'] ?? 'Dar es Salaam',
-          'images': imageUrls.isNotEmpty ? imageUrls : ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800'],
-          'primaryImageUrl': imageUrls.isNotEmpty ? imageUrls.first : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800',
-          'isVerified': vehicle['isVerified'] ?? true,
-          'status': map['status'] ?? 'PUBLISHED',
-          'description': vehicle['description'] ?? map['description'] ?? '',
-          'features': vehicle['features'] ?? [],
-        };
-      }).toList();
-    } catch (_) {
-      return [];
+    if (query.text.trim().isNotEmpty) queryParams['q'] = query.text.trim();
+    if (query.type != null) queryParams['type'] = query.type;
+    if (query.location.trim().isNotEmpty) {
+      queryParams['county'] = query.location.trim();
     }
+    if (query.minPrice != null) queryParams['priceMin'] = query.minPrice;
+    if (query.maxPrice != null) queryParams['priceMax'] = query.maxPrice;
+    if (query.transmission != null) {
+      queryParams['transmission'] = query.transmission;
+    }
+    if (query.fuelType != null) queryParams['fuelType'] = query.fuelType;
+
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      '/listings',
+      queryParameters: queryParams,
+    );
+    final items = response['data'] as List<dynamic>? ?? const [];
+    return items
+        .map((item) => _mapListing(Map<String, dynamic>.from(item as Map)))
+        .toList();
   }
 
   @override
   Future<Map<String, dynamic>> getListingDetails(String id) async {
-    try {
-      final response = await _apiClient.get<List<dynamic>>(
-        '/listings',
-        queryParameters: {
-          'id': 'eq.$id',
-          'select': '*,vehicles(*,vehicle_images(*))',
-        },
-      );
-
-      if (response.isEmpty) return {};
-
-      final map = Map<String, dynamic>.from(response.first as Map);
-      final vehicle = map['vehicles'] != null ? Map<String, dynamic>.from(map['vehicles'] as Map) : <String, dynamic>{};
-      final imagesList = (vehicle['vehicle_images'] as List<dynamic>?) ?? [];
-      final imageUrls = imagesList.map((img) => img['publicUrl'] as String? ?? '').where((u) => u.isNotEmpty).toList();
-
-      return {
-        'id': map['id'],
-        'title': map['title'] ?? '${vehicle['year'] ?? ''} ${vehicle['make'] ?? ''} ${vehicle['model'] ?? ''}'.trim(),
-        'price': map['askingPrice'] ?? 0,
-        'currency': map['currency'] ?? 'TZS',
-        'make': vehicle['make'] ?? '',
-        'model': vehicle['model'] ?? '',
-        'year': vehicle['year'] ?? 2022,
-        'mileage': vehicle['mileage'] ?? 0,
-        'fuelType': vehicle['fuelType'] ?? 'PETROL',
-        'transmission': vehicle['transmission'] ?? 'AUTOMATIC',
-        'condition': vehicle['condition'] ?? 'FOREIGN_USED',
-        'county': map['county'] ?? 'Dar es Salaam',
-        'images': imageUrls.isNotEmpty ? imageUrls : ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800'],
-        'primaryImageUrl': imageUrls.isNotEmpty ? imageUrls.first : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800',
-        'isVerified': vehicle['isVerified'] ?? true,
-        'status': map['status'] ?? 'PUBLISHED',
-        'description': vehicle['description'] ?? map['description'] ?? '',
-        'features': vehicle['features'] ?? [],
-      };
-    } catch (_) {
-      return {};
-    }
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      '/listings/$id',
+    );
+    final candidates = await _apiClient.get<List<dynamic>>(
+      '/v2/vehicles/discoverable',
+    );
+    final current = candidates.whereType<Map>().where((row) => row['id'] == id);
+    final v2 = current.isEmpty
+        ? const <String, dynamic>{}
+        : Map<String, dynamic>.from(current.first);
+    return _mapListing({
+      ...response,
+      // The listing endpoint owns the detail payload. The public V2 discovery
+      // projection adds only server-authoritative renter decision fields.
+      if (v2['vehicleCategory'] != null)
+        'vehicleCategory': v2['vehicleCategory'],
+      if (v2['capabilities'] != null) 'capabilities': v2['capabilities'],
+      if (v2['publicLocality'] != null) 'publicLocality': v2['publicLocality'],
+      if (v2['rentalPricing'] != null) 'rentalPricing': v2['rentalPricing'],
+      'eligibility':
+          v2['eligibility'] ?? const <String, dynamic>{'requestable': false},
+      'operationalAvailability': current.isEmpty
+          ? 'UNAVAILABLE'
+          : v2['operationalAvailability'],
+    });
   }
 
   @override
   Future<List<Map<String, dynamic>>> getMyListings() async {
-    return searchListings();
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      '/listings/mine',
+    );
+    final items = response['data'] as List<dynamic>? ?? const [];
+    return items
+        .map((item) => _mapListing(Map<String, dynamic>.from(item as Map)))
+        .toList();
   }
 
   @override
-  Future<bool> toggleFavourite(String listingId) async {
-    return true;
+  Future<List<Map<String, dynamic>>> getSavedListings() async {
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      '/listings/saved',
+    );
+    final items = response['data'] as List<dynamic>? ?? const [];
+    return items
+        .map((item) => _mapListing(Map<String, dynamic>.from(item as Map)))
+        .toList();
+  }
+
+  @override
+  Future<bool> setSaved(String listingId, bool saved) async {
+    final response = saved
+        ? await _apiClient.post<Map<String, dynamic>>(
+            '/listings/$listingId/save',
+          )
+        : await _apiClient.delete<Map<String, dynamic>>(
+            '/listings/$listingId/save',
+          );
+    return response['saved'] as bool? ?? saved;
+  }
+
+  @override
+  Future<void> publishListing(String listingId) =>
+      _listingAction(listingId, 'publish');
+
+  @override
+  Future<void> pauseListing(String listingId) =>
+      _listingAction(listingId, 'pause');
+
+  @override
+  Future<void> archiveListing(String listingId) =>
+      _listingAction(listingId, 'archive');
+
+  Future<void> _listingAction(String listingId, String action) async {
+    await _apiClient.post<Map<String, dynamic>>('/listings/$listingId/$action');
+  }
+
+  Map<String, dynamic> _mapListing(Map<String, dynamic> map) {
+    final vehicle = map['vehicle'] is Map
+        ? Map<String, dynamic>.from(map['vehicle'] as Map)
+        : <String, dynamic>{};
+    final images = vehicle['images'] as List<dynamic>? ?? const [];
+    final imageUrls = images
+        .map((image) => image is Map ? image['media'] : null)
+        .whereType<Map>()
+        .map((media) => media['publicUrl'] as String? ?? '')
+        .where((url) => url.isNotEmpty)
+        .toList();
+
+    return {
+      ...map,
+      'price': map['askingPrice'] ?? map['rentalConfig']?['dailyRate'] ?? 0,
+      'make': vehicle['make'] ?? '',
+      'model': vehicle['model'] ?? '',
+      'year': vehicle['year'],
+      'mileage': vehicle['mileage'] ?? 0,
+      'fuelType': vehicle['fuelType'] ?? '',
+      'transmission': vehicle['transmission'] ?? '',
+      'condition': vehicle['condition'] ?? '',
+      'description': map['description'] ?? vehicle['description'] ?? '',
+      'features': vehicle['features'] ?? const [],
+      'isVerified': vehicle['isVerified'] ?? false,
+      'images': imageUrls,
+      'mediaItems': images
+          .map((image) => image is Map ? image['media'] : null)
+          .whereType<Map>()
+          .map((media) => Map<String, dynamic>.from(media))
+          .toList(),
+      'primaryImageUrl': imageUrls.isEmpty ? '' : imageUrls.first,
+      'rentalPricing': map['rentalPricing'] ?? vehicle['rentalPricing'],
+    };
   }
 }

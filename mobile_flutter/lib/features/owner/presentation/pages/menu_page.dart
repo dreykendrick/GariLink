@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../authentication/presentation/providers/auth_provider.dart';
 import 'package:garilink_mobile/core/theme/theme.dart';
 
-class MenuPage extends StatelessWidget {
+class MenuPage extends ConsumerWidget {
   const MenuPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: GariLinkColors.background,
       appBar: AppBar(
@@ -24,15 +26,15 @@ class MenuPage extends StatelessWidget {
             _buildMenuItem('Payment & Payouts', Icons.payments_outlined),
             _buildMenuItem('Team Management', Icons.group_outlined),
             _buildMenuItem('Subscription', Icons.workspace_premium_outlined),
-            
+
             const SizedBox(height: GariLinkSpacing.xl),
             _buildSectionHeader('SUPPORT'),
             _buildMenuItem('Help Center', Icons.help_outline),
             _buildMenuItem('Contact Support', Icons.headset_mic_outlined),
             _buildMenuItem('Feedback', Icons.rate_review_outlined),
-            
+
             const SizedBox(height: GariLinkSpacing.xl),
-            _buildLogoutButton(),
+            _buildLogoutButton(ref),
             const SizedBox(height: GariLinkSpacing.xxl),
           ],
         ),
@@ -42,7 +44,10 @@ class MenuPage extends StatelessWidget {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.lg, vertical: GariLinkSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: GariLinkSpacing.lg,
+        vertical: GariLinkSpacing.sm,
+      ),
       child: Text(
         title,
         style: GariLinkTypography.bodySmall.copyWith(
@@ -55,10 +60,14 @@ class MenuPage extends StatelessWidget {
   }
 
   Widget _buildMenuItem(String title, IconData icon) {
-    return InkWell(
-      onTap: () {},
+    return Semantics(
+      enabled: false,
+      label: '$title, not available yet',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.lg, vertical: GariLinkSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: GariLinkSpacing.lg,
+          vertical: GariLinkSpacing.md,
+        ),
         decoration: BoxDecoration(
           color: GariLinkColors.surface,
           border: Border(
@@ -77,40 +86,73 @@ class MenuPage extends StatelessWidget {
             ),
             const SizedBox(width: GariLinkSpacing.md),
             Expanded(
-              child: Text(title, style: GariLinkTypography.bodyLarge.copyWith(fontWeight: FontWeight.w500)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GariLinkTypography.bodyLarge.copyWith(
+                      color: GariLinkColors.textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: GariLinkSpacing.xs),
+                  Text(
+                    'Not available yet',
+                    style: GariLinkTypography.bodySmall.copyWith(
+                      color: GariLinkColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const Icon(Icons.chevron_right, color: GariLinkColors.textMuted),
+            const Icon(
+              Icons.lock_clock_outlined,
+              color: GariLinkColors.textMuted,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLogoutButton() {
+  Widget _buildLogoutButton(WidgetRef ref) {
     return InkWell(
-      onTap: () {},
+      onTap: ref.watch(authStateProvider).isLoading
+          ? null
+          : () => ref.read(authStateProvider.notifier).logout(),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.lg, vertical: GariLinkSpacing.lg),
-        decoration: const BoxDecoration(
-          color: GariLinkColors.surface,
+        padding: const EdgeInsets.symmetric(
+          horizontal: GariLinkSpacing.lg,
+          vertical: GariLinkSpacing.lg,
         ),
+        decoration: const BoxDecoration(color: GariLinkColors.surface),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(GariLinkSpacing.sm),
               decoration: BoxDecoration(
-                color: GariLinkColors.error.withOpacity(0.1),
+                color: GariLinkColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(GariLinkRadius.badge),
               ),
-              child: const Icon(Icons.logout_rounded, color: GariLinkColors.error, size: 20),
+              child: const Icon(
+                Icons.logout_rounded,
+                color: GariLinkColors.error,
+                size: 20,
+              ),
             ),
             const SizedBox(width: GariLinkSpacing.md),
-            Text('Logout', style: GariLinkTypography.bodyLarge.copyWith(color: GariLinkColors.error, fontWeight: FontWeight.bold)),
+            Text(
+              'Logout',
+              style: GariLinkTypography.bodyLarge.copyWith(
+                color: GariLinkColors.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 }
-

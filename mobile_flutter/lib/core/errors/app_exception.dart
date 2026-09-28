@@ -14,11 +14,13 @@ class NetworkException extends AppException {
 }
 
 class UnauthorizedException extends AppException {
-  const UnauthorizedException(super.message, {super.code}) : super(statusCode: 401);
+  const UnauthorizedException(super.message, {super.code})
+    : super(statusCode: 401);
 }
 
 class ForbiddenException extends AppException {
-  const ForbiddenException(super.message, {super.code}) : super(statusCode: 403);
+  const ForbiddenException(super.message, {super.code})
+    : super(statusCode: 403);
 }
 
 class NotFoundException extends AppException {
@@ -34,5 +36,11 @@ class ServerException extends AppException {
 }
 
 class ValidationException extends AppException {
-  const ValidationException(super.message, {super.code}) : super(statusCode: 400);
+  const ValidationException(super.message, {super.code})
+    : super(statusCode: 400);
 }
+
+/// Converts unexpected failures into calm, non-technical product copy.
+String userFacingError(Object error) => error is AppException
+    ? error.message
+    : 'Something went wrong. Please try again.';

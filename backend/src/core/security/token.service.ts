@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
+import { Injectable } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { randomUUID } from "crypto";
 
 export interface AccessJwtPayload {
   sub: string;
@@ -40,8 +41,8 @@ export class TokenService {
         sessionId: payload.sessionId,
       },
       {
-        secret: this.configService.get<string>('app.jwt.accessSecret'),
-        expiresIn: this.configService.get<string>('app.jwt.accessExpiresIn'),
+        secret: this.configService.get<string>("app.jwt.accessSecret"),
+        expiresIn: this.configService.get<string>("app.jwt.accessExpiresIn"),
       },
     );
   }
@@ -57,10 +58,11 @@ export class TokenService {
         userId: payload.userId,
         sessionId: payload.sessionId,
         familyId: payload.familyId,
+        jti: randomUUID(),
       },
       {
-        secret: this.configService.get<string>('app.jwt.refreshSecret'),
-        expiresIn: this.configService.get<string>('app.jwt.refreshExpiresIn'),
+        secret: this.configService.get<string>("app.jwt.refreshSecret"),
+        expiresIn: this.configService.get<string>("app.jwt.refreshExpiresIn"),
       },
     );
   }
@@ -68,7 +70,7 @@ export class TokenService {
   verifyAccessToken(token: string): AccessJwtPayload | null {
     try {
       return this.jwtService.verify<AccessJwtPayload>(token, {
-        secret: this.configService.get<string>('app.jwt.accessSecret'),
+        secret: this.configService.get<string>("app.jwt.accessSecret"),
       });
     } catch {
       return null;
@@ -78,7 +80,7 @@ export class TokenService {
   verifyRefreshToken(token: string): RefreshJwtPayload | null {
     try {
       return this.jwtService.verify<RefreshJwtPayload>(token, {
-        secret: this.configService.get<string>('app.jwt.refreshSecret'),
+        secret: this.configService.get<string>("app.jwt.refreshSecret"),
       });
     } catch {
       return null;

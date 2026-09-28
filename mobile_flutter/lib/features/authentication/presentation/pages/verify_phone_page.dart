@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/spacing.dart';
-import '../../../../core/theme/radius.dart';
+import '../../../../shared/widgets/auth_content.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
@@ -19,21 +21,80 @@ class VerifyPhonePage extends ConsumerStatefulWidget {
 class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
   final _formKey = GlobalKey<FormState>();
   final _codeController = TextEditingController();
+  Timer? _cooldownTimer;
+  int _secondsRemaining = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCooldown();
+  }
+
+  void _startCooldown() {
+    final availableAt = DateTime.now().add(const Duration(seconds: 60));
+    _secondsRemaining = 60;
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = availableAt.difference(DateTime.now()).inSeconds;
+      setState(() => _secondsRemaining = remaining > 0 ? remaining : 0);
+      if (_secondsRemaining == 0) timer.cancel();
+    });
+  }
+
+  Future<void> _resend() async {
+    if (_secondsRemaining > 0 || ref.read(authStateProvider).isLoading) return;
+    try {
+      await ref.read(authStateProvider.notifier).resendOtp();
+      if (!mounted) return;
+      _startCooldown();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A new verification code has been requested.'),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ref.read(authStateProvider).errorMessage ??
+                  'We could not send a new code. Please try again.',
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _codeController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    if (ref.read(authStateProvider).isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      final success = await ref.read(authStateProvider.notifier).verifyOtpCode(
-            _codeController.text.trim(),
-          );
-      if (success && mounted) {
+      final success = await ref
+          .read(authStateProvider.notifier)
+          .verifyOtpCode(_codeController.text.trim());
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ref.read(authStateProvider).errorMessage ??
+                  'Please check your code and try again.',
+            ),
+          ),
+        );
+      } else if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Phone number verified successfully!'),
@@ -42,11 +103,14 @@ class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
         );
         context.go('/home');
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(
+              ref.read(authStateProvider).errorMessage ??
+                  'We could not verify that code. Please try again.',
+            ),
             backgroundColor: GariLinkColors.error,
           ),
         );
@@ -54,105 +118,113 @@ class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
     }
   }
 
+  String _maskedPhone(String? phone) {
+    if (phone == null || phone.length < 5) return 'your phone number';
+    return '${phone.substring(0, 6)} ••• ••${phone.substring(phone.length - 2)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
-    final user = authState.user;
+    final phone = authState.pendingPhone ?? authState.user?.phoneNumber;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF070F1A) : GariLinkColors.background,
+      backgroundColor: isDark
+          ? const Color(0xFF070F1A)
+          : GariLinkColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
+          tooltip: 'Sign out and use another account',
           icon: Icon(
             Icons.arrow_back,
             color: isDark ? Colors.white : GariLinkColors.textPrimary,
           ),
-          onPressed: () => context.pop(),
+          onPressed: authState.isLoading
+              ? null
+              : () => ref.read(authStateProvider.notifier).logout(),
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.xxl),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Verify Phone',
-                    style: GoogleFonts.inter(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : GariLinkColors.textPrimary,
-                      letterSpacing: -1.0,
+        child: AuthContent(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AuthHeading(
+                  title: 'Verify your phone',
+                  description:
+                      'Enter the 6-digit code sent to ${_maskedPhone(phone)}.',
+                ),
+                const SizedBox(height: GariLinkSpacing.xxxl),
+                AppTextField(
+                  labelText: 'Verification code',
+                  hintText: 'Enter 6-digit code',
+                  controller: _codeController,
+                  keyboardType: TextInputType.number,
+                  autofillHints: const [AutofillHints.oneTimeCode],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(6),
+                  ],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
+                  enabled: !authState.isLoading,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Verification code is required';
+                    }
+                    if (!RegExp(r'^\d{6}$').hasMatch(val.trim())) {
+                      return 'Code must be exactly 6 digits';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: GariLinkSpacing.xxxl),
+                AppButton(
+                  text: 'Verify code',
+                  isLoading: authState.isLoading,
+                  onPressed: _submit,
+                ),
+                const SizedBox(height: GariLinkSpacing.xl),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      "Didn't receive the code? ",
+                      style: GoogleFonts.inter(
+                        color: GariLinkColors.textSecondary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: GariLinkSpacing.xs),
-                  Text(
-                    'We sent a 6-digit OTP code to ${user?.phoneNumber ?? "your phone number"}. Enter it below to activate your account.',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: GariLinkColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: GariLinkSpacing.xxxl),
-                  AppTextField(
-                    labelText: 'Verification Code',
-                    hintText: 'Enter 6-digit code',
-                    controller: _codeController,
-                    keyboardType: TextInputType.number,
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Verification code is required';
-                      }
-                      if (val.trim().length != 6) {
-                        return 'Code must be exactly 6 digits';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: GariLinkSpacing.xxxl),
-                  AppButton(
-                    text: 'Verify Code',
-                    isLoading: authState.isLoading,
-                    onPressed: _submit,
-                  ),
-                  const SizedBox(height: GariLinkSpacing.xl),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Didn't receive the code? ",
+                    TextButton(
+                      onPressed: authState.isLoading || _secondsRemaining > 0
+                          ? null
+                          : _resend,
+                      child: Text(
+                        _secondsRemaining > 0
+                            ? 'Resend in ${_secondsRemaining}s'
+                            : 'Resend code',
                         style: GoogleFonts.inter(
-                          color: GariLinkColors.textSecondary,
+                          color: GariLinkColors.accent,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('OTP code resent successfully!'),
-                              backgroundColor: GariLinkColors.success,
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'Resend Code',
-                          style: GoogleFonts.inter(
-                            color: GariLinkColors.accent,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: authState.isLoading
+                      ? null
+                      : () => ref.read(authStateProvider.notifier).logout(),
+                  child: const Text(
+                    'Wrong number? Sign out to use another account',
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

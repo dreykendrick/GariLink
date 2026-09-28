@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:garilink_mobile/core/theme/theme.dart';
 
 class SectionHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onSeeAll;
 
-  const SectionHeader({
-    Key? key,
-    required this.title,
-    this.onSeeAll,
-  }) : super(key: key);
+  const SectionHeader({super.key, required this.title, this.onSeeAll});
 
   @override
   Widget build(BuildContext context) {
@@ -42,4 +37,3 @@ class SectionHeader extends StatelessWidget {
     );
   }
 }
-

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/spacing.dart';
-import '../../../../core/theme/radius.dart';
+import '../../../../core/validation/tanzanian_phone.dart';
+import '../../../../shared/widgets/auth_content.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
@@ -35,13 +36,15 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     });
 
     try {
-      await ref.read(authStateProvider.notifier).forgotPassword(
-            _phoneController.text.trim(),
-          );
+      await ref
+          .read(authStateProvider.notifier)
+          .forgotPassword(_phoneController.text.trim());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('OTP code sent to your phone!'),
+            content: Text(
+              'If the account exists, a verification code was sent.',
+            ),
             backgroundColor: GariLinkColors.success,
           ),
         );
@@ -51,7 +54,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(userFacingError(e)),
             backgroundColor: GariLinkColors.error,
           ),
         );
@@ -69,7 +72,9 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF070F1A) : GariLinkColors.background,
+      backgroundColor: isDark
+          ? const Color(0xFF070F1A)
+          : GariLinkColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -82,57 +87,32 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.xxl),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Forgot Password',
-                    style: GoogleFonts.inter(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : GariLinkColors.textPrimary,
-                      letterSpacing: -1.0,
-                    ),
-                  ),
-                  const SizedBox(height: GariLinkSpacing.xs),
-                  Text(
-                    'Enter your phone number below to receive an OTP code to reset your password.',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: GariLinkColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: GariLinkSpacing.xxxl),
-                  AppTextField(
-                    labelText: 'Phone number',
-                    hintText: '+254712345678',
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Phone number is required';
-                      }
-                      final phoneRegex = RegExp(r'^\+[1-9]\d{6,14}$');
-                      if (!phoneRegex.hasMatch(val.trim())) {
-                        return 'Must be in format +254712345678';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: GariLinkSpacing.xxxl),
-                  AppButton(
-                    text: 'Send Reset Code',
-                    isLoading: _isLoading,
-                    onPressed: _submit,
-                  ),
-                ],
-              ),
+        child: AuthContent(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AuthHeading(
+                  title: 'Recover your account',
+                  description:
+                      "Enter your phone number and we’ll send a code to reset your password.",
+                ),
+                const SizedBox(height: GariLinkSpacing.xxxl),
+                AppTextField(
+                  labelText: 'Phone number',
+                  hintText: '0712 345 678',
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  validator: validateTanzanianPhone,
+                ),
+                const SizedBox(height: GariLinkSpacing.xxxl),
+                AppButton(
+                  text: 'Send reset code',
+                  isLoading: _isLoading,
+                  onPressed: _submit,
+                ),
+              ],
             ),
           ),
         ),

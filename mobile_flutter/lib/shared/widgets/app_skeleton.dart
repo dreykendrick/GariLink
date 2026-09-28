@@ -33,15 +33,23 @@ class AppSkeleton extends StatefulWidget {
           child: Container(
             padding: const EdgeInsets.all(GariLinkSpacing.lg),
             decoration: BoxDecoration(
-              color: isDark ? GariLinkColors.darkSurfaceVariant : GariLinkColors.surface,
+              color: isDark
+                  ? GariLinkColors.darkSurfaceVariant
+                  : GariLinkColors.surface,
               borderRadius: GariLinkRadius.cardBorderRadius,
               border: Border.all(
-                color: isDark ? GariLinkColors.darkBorder : GariLinkColors.neutral200,
+                color: isDark
+                    ? GariLinkColors.darkBorder
+                    : GariLinkColors.neutral200,
               ),
             ),
             child: Row(
               children: [
-                const AppSkeleton(width: 80, height: 80, borderRadius: GariLinkRadius.badge),
+                const AppSkeleton(
+                  width: 80,
+                  height: 80,
+                  borderRadius: GariLinkRadius.badge,
+                ),
                 const SizedBox(width: GariLinkSpacing.lg),
                 Expanded(
                   child: Column(
@@ -75,9 +83,10 @@ class _AppSkeletonState extends State<AppSkeleton>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -89,7 +98,9 @@ class _AppSkeletonState extends State<AppSkeleton>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? GariLinkColors.neutral700 : GariLinkColors.neutral200;
+    final baseColor = isDark
+        ? GariLinkColors.neutral700
+        : GariLinkColors.neutral200;
 
     return FadeTransition(
       opacity: _animation,

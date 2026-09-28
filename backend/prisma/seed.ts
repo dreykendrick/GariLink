@@ -16,9 +16,15 @@ import {
   CapabilityStatus,
   Currency,
 } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+
+function requiredSeedSecret(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} must be configured for local seeding`);
+  return value;
+}
 
 async function hash(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
@@ -26,6 +32,12 @@ async function hash(password: string): Promise<string> {
 
 async function main(): Promise<void> {
   console.log('🌱 Starting GariLink Supabase database seed...');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('The development seed is disabled in production');
+  }
+  const adminPassword = requiredSeedSecret('SEED_ADMIN_PASSWORD');
+  const dealerPassword = requiredSeedSecret('SEED_DEALER_PASSWORD');
+  const customerPassword = requiredSeedSecret('SEED_CUSTOMER_PASSWORD');
 
   // 1. Admin User
   const admin = await prisma.user.upsert({
@@ -34,7 +46,7 @@ async function main(): Promise<void> {
     create: {
       phoneNumber: '+255700000000',
       email: 'admin@garilink.co.tz',
-      passwordHash: await hash('AdminPass123'),
+      passwordHash: await hash(adminPassword),
       isPhoneVerified: true,
       isEmailVerified: true,
       isActive: true,
@@ -57,7 +69,7 @@ async function main(): Promise<void> {
       },
     },
   });
-  console.log(`✅ Admin user created: ${admin.phoneNumber}`);
+  console.log('✅ Admin seed user created');
 
   // 2. Dealer User
   const dealer = await prisma.user.upsert({
@@ -66,7 +78,7 @@ async function main(): Promise<void> {
     create: {
       phoneNumber: '+255712345678',
       email: 'dealer@garilink.co.tz',
-      passwordHash: await hash('DealerPass123'),
+      passwordHash: await hash(dealerPassword),
       isPhoneVerified: true,
       isEmailVerified: true,
       isActive: true,
@@ -110,7 +122,7 @@ async function main(): Promise<void> {
       },
     },
   });
-  console.log(`✅ Dealer user created: ${dealer.phoneNumber}`);
+  console.log('✅ Dealer seed user created');
 
   // 3. Customer User
   const customer = await prisma.user.upsert({
@@ -119,7 +131,7 @@ async function main(): Promise<void> {
     create: {
       phoneNumber: '+255755123456',
       email: 'customer@garilink.co.tz',
-      passwordHash: await hash('CustomerPass123'),
+      passwordHash: await hash(customerPassword),
       isPhoneVerified: true,
       isActive: true,
       roles: {
@@ -139,7 +151,7 @@ async function main(): Promise<void> {
       },
     },
   });
-  console.log(`✅ Customer user created: ${customer.phoneNumber}`);
+  console.log('✅ Customer seed user created');
 
   // 4. Dealer Workspace
   const dealerWorkspace = await prisma.workspace.upsert({
@@ -291,10 +303,7 @@ async function main(): Promise<void> {
   }
 
   console.log('\n🎉 GariLink Supabase database successfully seeded with live data!\n');
-  console.log('Credentials:');
-  console.log('  Admin:    +255700000000 / AdminPass123');
-  console.log('  Dealer:   +255712345678 / DealerPass123');
-  console.log('  Customer: +255755123456 / CustomerPass123\n');
+  console.log('Seed credentials were supplied through the local environment.');
 }
 
 main()

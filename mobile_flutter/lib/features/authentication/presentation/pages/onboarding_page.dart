@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/storage_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/colors.dart';
@@ -6,16 +8,37 @@ import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/radius.dart';
 import '../../../../shared/widgets/app_button.dart';
 
-class OnboardingPage extends StatefulWidget {
+class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
 
   @override
-  State<OnboardingPage> createState() => _OnboardingPageState();
+  ConsumerState<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> {
+class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _finishing = false;
+
+  Future<void> _finish() async {
+    if (_finishing) return;
+    setState(() => _finishing = true);
+    try {
+      await ref
+          .read(storageServiceProvider)
+          .setString('onboarding_completed', 'true');
+      if (mounted) context.go('/welcome');
+    } catch (_) {
+      if (mounted) {
+        setState(() => _finishing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save your preference. Please try again.'),
+          ),
+        );
+      }
+    }
+  }
 
   final List<OnboardingItem> _items = [
     OnboardingItem(
@@ -31,10 +54,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
       visualPainter: OnboardingEarnPainter(),
     ),
     OnboardingItem(
-      title: 'Know where your\nvehicle is',
-      subtitle: 'Real-time location tracking.',
-      icon: Icons.gps_fixed_outlined,
-      visualPainter: OnboardingTrackPainter(),
+      title: 'Plan your next\njourney',
+      subtitle:
+          'Explore vehicles, compare options and manage your rental requests.',
+      icon: Icons.explore_outlined,
+      visualPainter: OnboardingMapPainter(),
     ),
   ];
 
@@ -51,7 +75,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         curve: Curves.easeInOut,
       );
     } else {
-      context.go('/welcome');
+      _finish();
     }
   }
 
@@ -59,7 +83,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF070F1A) : GariLinkColors.background,
+      backgroundColor: isDark
+          ? const Color(0xFF070F1A)
+          : GariLinkColors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -70,7 +96,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               child: Padding(
                 padding: const EdgeInsets.all(GariLinkSpacing.lg),
                 child: TextButton(
-                  onPressed: () => context.go('/welcome'),
+                  onPressed: _finishing ? null : _finish,
                   child: Text(
                     'Skip',
                     style: GoogleFonts.inter(
@@ -95,8 +121,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 itemCount: _items.length,
                 itemBuilder: (context, index) {
                   final item = _items[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.xxl),
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GariLinkSpacing.xxl,
+                    ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -105,21 +133,25 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           width: double.infinity,
                           height: 240,
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF0F1E33) : Colors.white,
-                            borderRadius: BorderRadius.circular(GariLinkRadius.card),
+                            color: isDark
+                                ? const Color(0xFF0F1E33)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(
+                              GariLinkRadius.card,
+                            ),
                             boxShadow: const [
                               BoxShadow(
                                 color: Color(0x0A000000),
                                 offset: Offset(0, 8),
                                 blurRadius: 24,
-                              )
+                              ),
                             ],
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(GariLinkRadius.card),
-                            child: CustomPaint(
-                              painter: item.visualPainter,
+                            borderRadius: BorderRadius.circular(
+                              GariLinkRadius.card,
                             ),
+                            child: CustomPaint(painter: item.visualPainter),
                           ),
                         ),
                         const SizedBox(height: GariLinkSpacing.xxxxl),
@@ -128,7 +160,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           style: GoogleFonts.inter(
                             fontSize: 32,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : GariLinkColors.textPrimary,
+                            color: isDark
+                                ? Colors.white
+                                : GariLinkColors.textPrimary,
                             height: 1.2,
                           ),
                           textAlign: TextAlign.center,
@@ -174,7 +208,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   ),
                   const SizedBox(height: GariLinkSpacing.xl),
                   AppButton(
-                    text: _currentPage == _items.length - 1 ? 'Get Started' : 'Next',
+                    text: _currentPage == _items.length - 1
+                        ? 'Get Started'
+                        : 'Next',
+                    isLoading: _finishing,
                     onPressed: _onNext,
                   ),
                 ],
@@ -205,26 +242,35 @@ class OnboardingItem {
 class OnboardingMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = GariLinkColors.accent.withOpacity(0.04);
+    final bgPaint = Paint()
+      ..color = GariLinkColors.accent.withValues(alpha: 0.04);
     canvas.drawRect(Offset.zero & size, bgPaint);
 
     final linePaint = Paint()
-      ..color = GariLinkColors.accent.withOpacity(0.15)
+      ..color = GariLinkColors.accent.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
     // Draw stylized map grid lines
     for (int i = 0; i < size.width; i += 40) {
-      canvas.drawLine(Offset(i.toDouble(), 0), Offset(i.toDouble() + 30, size.height), linePaint);
+      canvas.drawLine(
+        Offset(i.toDouble(), 0),
+        Offset(i.toDouble() + 30, size.height),
+        linePaint,
+      );
     }
     for (int j = 0; j < size.height; j += 40) {
-      canvas.drawLine(Offset(0, j.toDouble()), Offset(size.width, j.toDouble() - 20), linePaint);
+      canvas.drawLine(
+        Offset(0, j.toDouble()),
+        Offset(size.width, j.toDouble() - 20),
+        linePaint,
+      );
     }
 
     // Draw central target rings
     final center = Offset(size.width / 2, size.height / 2);
     final ringPaint = Paint()
-      ..color = GariLinkColors.accent.withOpacity(0.3)
+      ..color = GariLinkColors.accent.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, 40, ringPaint);
@@ -258,12 +304,13 @@ class OnboardingMapPainter extends CustomPainter {
 class OnboardingEarnPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = GariLinkColors.success.withOpacity(0.04);
+    final bgPaint = Paint()
+      ..color = GariLinkColors.success.withValues(alpha: 0.04);
     canvas.drawRect(Offset.zero & size, bgPaint);
 
     // Draw stylized earnings bar chart outline
     final barPaint = Paint()
-      ..color = GariLinkColors.success.withOpacity(0.2)
+      ..color = GariLinkColors.success.withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
 
     final double barWidth = 32.0;
@@ -292,9 +339,18 @@ class OnboardingEarnPainter extends CustomPainter {
 
     final path = Path()
       ..moveTo(startX + barWidth / 2, size.height - heights[0] - 30)
-      ..lineTo(startX + barWidth / 2 + barWidth + spacing, size.height - heights[1] - 30)
-      ..lineTo(startX + barWidth / 2 + 2 * (barWidth + spacing), size.height - heights[2] - 30)
-      ..lineTo(startX + barWidth / 2 + 3 * (barWidth + spacing), size.height - heights[3] - 30);
+      ..lineTo(
+        startX + barWidth / 2 + barWidth + spacing,
+        size.height - heights[1] - 30,
+      )
+      ..lineTo(
+        startX + barWidth / 2 + 2 * (barWidth + spacing),
+        size.height - heights[2] - 30,
+      )
+      ..lineTo(
+        startX + barWidth / 2 + 3 * (barWidth + spacing),
+        size.height - heights[3] - 30,
+      );
 
     canvas.drawPath(path, trendPaint);
   }
@@ -306,16 +362,17 @@ class OnboardingEarnPainter extends CustomPainter {
 class OnboardingTrackPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = GariLinkColors.accent.withOpacity(0.04);
+    final bgPaint = Paint()
+      ..color = GariLinkColors.accent.withValues(alpha: 0.04);
     canvas.drawRect(Offset.zero & size, bgPaint);
 
     final radarPaint = Paint()
-      ..color = GariLinkColors.accent.withOpacity(0.15)
+      ..color = GariLinkColors.accent.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
     final center = Offset(size.width / 2, size.height / 2);
-    
+
     // Draw radar sweeps
     canvas.drawCircle(center, 30, radarPaint);
     canvas.drawCircle(center, 60, radarPaint);

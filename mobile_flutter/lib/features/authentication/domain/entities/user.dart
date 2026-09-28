@@ -1,6 +1,14 @@
 enum UserRole { customer, privateOwner, dealer, mechanic, inspector, admin }
 
-enum CapabilityType { listVehicles, manageListings, manageRentalListings, manageFleet, performInspections, performRepairs, admin }
+enum CapabilityType {
+  listVehicles,
+  manageListings,
+  manageRentalListings,
+  manageFleet,
+  performInspections,
+  performRepairs,
+  admin,
+}
 
 enum CapabilityStatus { pending, active, suspended, revoked, rejected }
 

@@ -1,8 +1,10 @@
-import { DomainEvent } from '../../../../shared/domain/domain-event.base';
+import { DomainEvent } from "../../../../shared/domain/domain-event.base";
 
 export class RentalStartedEvent extends DomainEvent {
   constructor(aggregateId: string) {
     super(aggregateId);
   }
-  get eventName(): string { return 'RentalStartedEvent'; }
+  get eventName(): string {
+    return "RentalStartedEvent";
+  }
 }

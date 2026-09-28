@@ -1,32 +1,48 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import { Result } from '../../../../shared/domain/result';
-import { AppError, ForbiddenError, ConflictError } from '../../../../core/errors/app-error';
-import { CreateListingDto } from '../dto/listing.dto';
-import { Listing } from '../../domain/entities/listing.entity';
-import { IListingRepository } from '../../domain/repositories/listing.repository.interface';
-import { PrismaService } from '../../../../shared/infrastructure/prisma.service';
-import { AuditLogService } from '../../../audit/audit-log.service';
-import { VehicleStatus, ListingStatus } from '@prisma/client';
-import { RentalConfigVO } from '../../domain/value-objects/rental-config.vo';
-import { DailyRate } from '../../domain/value-objects/daily-rate.vo';
-import { Currency } from '../../domain/value-objects/currency.vo';
+import { Injectable, Inject } from "@nestjs/common";
+import { assertWorkspaceAccess } from "../../../../core/security/workspace-access";
+import { v4 as uuidv4 } from "uuid";
+import { Result } from "../../../../shared/domain/result";
+import {
+  AppError,
+  ForbiddenError,
+  ConflictError,
+} from "../../../../core/errors/app-error";
+import { CreateListingDto } from "../dto/listing.dto";
+import { Listing } from "../../domain/entities/listing.entity";
+import { IListingRepository } from "../../domain/repositories/listing.repository.interface";
+import { PrismaService } from "../../../../shared/infrastructure/prisma.service";
+import { AuditLogService } from "../../../audit/audit-log.service";
+import { VehicleStatus, ListingStatus } from "@prisma/client";
+import { RentalConfigVO } from "../../domain/value-objects/rental-config.vo";
+import { DailyRate } from "../../domain/value-objects/daily-rate.vo";
+import { Currency } from "../../domain/value-objects/currency.vo";
 
 class ListingAccessDeniedError extends ForbiddenError {
-  readonly code = 'LISTING_ACCESS_DENIED';
-  constructor() { super('You do not have access to this listing'); }
+  readonly code = "LISTING_ACCESS_DENIED";
+  constructor() {
+    super("You do not have access to this listing");
+  }
 }
 
 @Injectable()
 export class CreateListingUseCase {
   constructor(
-    @Inject('IListingRepository') private readonly repository: IListingRepository,
+    @Inject("IListingRepository")
+    private readonly repository: IListingRepository,
     private readonly prisma: PrismaService,
     private readonly auditLog: AuditLogService,
   ) {}
 
-  async execute(input: CreateListingDto & { userId: string }): Promise<Result<Listing, AppError>> {
+  async execute(
+    input: CreateListingDto & { userId: string },
+  ): Promise<Result<Listing, AppError>> {
     try {
+      await assertWorkspaceAccess(
+        this.prisma,
+        input.userId,
+        input.workspaceId,
+        true,
+      );
       const vehicle = await this.prisma.vehicle.findUnique({
         where: { id: input.vehicleId },
       });
@@ -34,13 +50,15 @@ export class CreateListingUseCase {
         return Result.fail(new ListingAccessDeniedError());
       }
       if (vehicle.status !== VehicleStatus.AVAILABLE) {
-        return Result.fail(new ForbiddenError('Vehicle must be AVAILABLE to be listed'));
+        return Result.fail(
+          new ForbiddenError("Vehicle must be AVAILABLE to be listed"),
+        );
       }
 
       let rentalConfig: RentalConfigVO | undefined;
-      if (input.type === 'FOR_HIRE' && input.rentalConfig) {
+      if (input.type === "FOR_HIRE" && input.rentalConfig) {
         const rc = input.rentalConfig;
-        const currency = new Currency({ code: rc.currency ?? 'KES' });
+        const currency = new Currency({ code: rc.currency ?? "TZS" });
         const dailyRate = new DailyRate({ amount: rc.dailyRate, currency });
         rentalConfig = new RentalConfigVO({
           dailyRate,
@@ -60,7 +78,7 @@ export class CreateListingUseCase {
         type: input.type,
         title: input.title,
         description: input.description ?? null,
-        currency: (input.pricingCurrency ?? 'KES') as any,
+        currency: (input.pricingCurrency ?? "TZS") as any,
         askingPrice: input.askingPrice,
         negotiable: input.negotiable ?? true,
         status: ListingStatus.DRAFT,
@@ -75,7 +93,7 @@ export class CreateListingUseCase {
         conditionNotes: input.conditionNotes ?? null,
         tags: input.tags ?? [],
         county: input.county ?? null,
-        country: 'KE',
+        country: "TZ",
         searchVector: null,
         deletedAt: null,
         rentalConfig,
@@ -84,9 +102,9 @@ export class CreateListingUseCase {
       await this.repository.save(listing);
 
       await this.auditLog.log({
-        action: 'listing.created',
+        action: "listing.created",
         actorId: input.userId,
-        subjectType: 'Listing',
+        subjectType: "Listing",
         subjectId: id,
         metadata: { vehicleId: input.vehicleId, type: input.type },
       });
@@ -94,7 +112,7 @@ export class CreateListingUseCase {
       return Result.ok(listing);
     } catch (error) {
       if (error instanceof AppError) return Result.fail(error);
-      return Result.fail(new ConflictError((error as Error).message));
+      throw error;
     }
   }
 }

@@ -1,9 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { CAPABILITIES_KEY } from '../decorators/capabilities.decorator';
-import { CapabilityType, CapabilityStatus } from '@prisma/client';
-import { PrismaService } from '../../../shared/infrastructure/prisma.service';
-import { AccessJwtPayload } from '../token.service';
+import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { CAPABILITIES_KEY } from "../decorators/capabilities.decorator";
+import { CapabilityType, CapabilityStatus } from "@prisma/client";
+import { PrismaService } from "../../../shared/infrastructure/prisma.service";
+import { AccessJwtPayload } from "../token.service";
 
 @Injectable()
 export class CapabilitiesGuard implements CanActivate {
@@ -27,13 +27,14 @@ export class CapabilitiesGuard implements CanActivate {
     if (!user) return false;
 
     // ADMIN role bypasses capability checks
-    if (user.roles.includes('ADMIN')) return true;
+    if (user.roles.includes("ADMIN")) return true;
 
     const activeCapabilities = await this.prisma.userCapability.findMany({
       where: {
         userId: user.userId,
         type: { in: requiredCapabilities },
         status: CapabilityStatus.ACTIVE,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
       select: { type: true },
     });

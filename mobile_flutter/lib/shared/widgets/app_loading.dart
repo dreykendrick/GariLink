@@ -6,10 +6,7 @@ import '../../core/theme/radius.dart';
 class AppLoading extends StatelessWidget {
   final bool isOverlay;
 
-  const AppLoading({
-    this.isOverlay = false,
-    super.key,
-  });
+  const AppLoading({this.isOverlay = false, super.key});
 
   @override
   Widget build(BuildContext context) {

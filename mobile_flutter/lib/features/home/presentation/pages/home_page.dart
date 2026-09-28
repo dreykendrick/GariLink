@@ -1,467 +1,596 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'package:garilink_mobile/core/theme/colors.dart';
-import 'package:garilink_mobile/core/theme/spacing.dart';
-import 'package:garilink_mobile/core/theme/radius.dart';
-import 'package:garilink_mobile/core/theme/typography.dart';
-import 'package:garilink_mobile/features/authentication/presentation/providers/auth_provider.dart';
-
+import '../../../../core/theme/theme.dart';
+import '../../../authentication/presentation/providers/auth_provider.dart';
+import '../../../booking/presentation/pages/transport_need_form.dart';
+import '../../../explore/domain/discovery_selection.dart';
+import '../../../location/data/device_location_service.dart';
+import '../../../location/domain/models/gari_location.dart';
+import '../../../trips/domain/models/transport_need.dart';
 
 class HomePage extends ConsumerStatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.currentLocation});
 
+  final Future<DeviceLocationResult> Function()? currentLocation;
   @override
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  int _activeCategoryIndex = 0;
+  final _needKey = GlobalKey<TransportNeedFormState>();
+  SearchLocation _searchLocation = const SearchLocation();
+  bool _locating = false;
 
-  final List<Map<String, dynamic>> _categories = [
-    {'name': 'Rent', 'icon': Icons.car_rental_rounded},
-    {'name': 'Garage', 'icon': Icons.garage_outlined},
-    {'name': 'Spare Parts', 'icon': Icons.build_outlined},
-    {'name': 'Track', 'icon': Icons.place_outlined},
-    {'name': 'DIY', 'icon': Icons.handyman_outlined},
-  ];
+  Future<void> _useCurrentLocation() async {
+    setState(() => _locating = true);
+    final result =
+        await (widget.currentLocation?.call() ??
+            const DeviceLocationService().currentLocation());
+    if (!mounted) return;
+    setState(() => _locating = false);
+    if (result is DeviceLocationSuccess) {
+      setState(
+        () => _searchLocation = SearchLocation(location: result.location),
+      );
+    } else if (result is DeviceLocationUnavailable) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+    }
+  }
 
-  final List<Map<String, dynamic>> _featuredRentals = [
-    {
-      'name': 'Toyota Land Cruiser',
-      'price': 120.0,
-      'rating': 4.8,
-      'image': 'assets/images/vehicles/placeholder.jpg',
-    },
-    {
-      'name': 'Toyota RAV4',
-      'price': 80.0,
-      'rating': 4.6,
-      'image': 'assets/images/vehicles/placeholder.jpg',
-    },
-    {
-      'name': 'Ford Ranger',
-      'price': 75.0,
-      'rating': 4.5,
-      'image': 'assets/images/vehicles/placeholder.jpg',
-    },
-  ];
+  Future<void> _chooseArea() async {
+    final selected = await showModalBottomSheet<GariLocation>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const _AreaPicker(),
+    );
+    if (selected != null && mounted) {
+      setState(() => _searchLocation = SearchLocation(location: selected));
+    }
+  }
 
-  final List<Map<String, dynamic>> _nearbyVehicles = [
-    {'image': 'assets/images/vehicles/placeholder.jpg'},
-    {'image': 'assets/images/vehicles/placeholder.jpg'},
-    {'image': 'assets/images/vehicles/placeholder.jpg'},
-    {'image': 'assets/images/vehicles/placeholder.jpg'},
-  ];
+  void _findVehicles() {
+    final state = _needKey.currentState;
+    if (state == null || !state.validate() || state.need == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose what you need transport for.')),
+      );
+      return;
+    }
+    if (_searchLocation.location?.latitude == null ||
+        _searchLocation.location?.longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose where you need the vehicle.')),
+      );
+      return;
+    }
+    _openExplore(state.need!);
+  }
+
+  void _openExplore(TransportNeed need) => context.go(
+    '/explore',
+    extra: DiscoverySearchIntent(need: need, searchLocation: _searchLocation),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
-    final userName = authState.user?.profile?.fullName ?? authState.user?.phoneNumber ?? 'User';
-
+    final profile = ref.watch(authStateProvider).user?.profile;
+    final name = profile?.firstName?.trim().isNotEmpty == true
+        ? profile!.firstName!.trim()
+        : profile?.fullName.trim().isNotEmpty == true
+        ? profile!.fullName.trim()
+        : 'GariLink member';
+    final bottomClearance =
+        MediaQuery.paddingOf(context).bottom +
+        GariLinkDimensions.bottomNavigationHeight +
+        28 +
+        GariLinkSpacing.md;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // GariLinkColors.background fallback
+      backgroundColor: GariLinkColors.background,
       body: SafeArea(
         child: CustomScrollView(
+          key: const Key('renter-home-scroll'),
           slivers: [
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      GariLinkSpacing.lg,
+                      GariLinkSpacing.lg,
+                      GariLinkSpacing.lg,
+                      bottomClearance,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Good Morning,',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: const Color(0xFF64748B),
+                        _Header(name: name),
+                        const SizedBox(height: 20),
+                        const _VehicleHero(),
+                        const SizedBox(height: 24),
+                        _Surface(
+                          tint: const Color(0xFFF4F7FB),
+                          child: TransportNeedForm(
+                            key: _needKey,
+                            variant: TransportNeedFormVariant.home,
                           ),
                         ),
-                        Text(
-                          userName,
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF0B1F3A), // GariLinkColors.primary
+                        const SizedBox(height: 16),
+                        _Surface(
+                          tint: const Color(0xFFF2F7FF),
+                          child: _locationContent,
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Popular for you',
+                                style: GariLinkTypography.titleLarge,
+                              ),
+                            ),
+                            TextButton(
+                              key: const Key('popular-see-all'),
+                              onPressed: () => context.go('/explore'),
+                              child: const Text('See all'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height:
+                              176 +
+                              (MediaQuery.textScalerOf(context).scale(100) -
+                                          100)
+                                      .clamp(0, 100) *
+                                  2.6,
+                          child: ListView.separated(
+                            key: const Key('popular-category-list'),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _popularCategories.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 12),
+                            itemBuilder: (_, index) => _PopularCard(
+                              item: _popularCategories[index],
+                              onTap: () =>
+                                  _openExplore(_popularCategories[index].need),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF2D7FF9), // GariLinkColors.accent
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(24.0),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.search, color: Color(0xFF94A3B8)),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Search...',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF94A3B8),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      height: 48,
-                      width: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24.0),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.notifications_none_rounded,
-                        color: Color(0xFF0B1F3A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: SizedBox(
-                  height: 100,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    itemCount: _categories.length,
-                    itemBuilder: (context, index) {
-                      final category = _categories[index];
-                      final isActive = index == _activeCategoryIndex;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _activeCategoryIndex = index;
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 64,
-                                height: 64,
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? const Color(0xFF2D7FF9)
-                                      : Colors.white,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    if (!isActive)
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  category['icon'] as IconData,
-                                  color: isActive
-                                      ? Colors.white
-                                      : const Color(0xFF0B1F3A),
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                category['name'] as String,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: isActive
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                  color: isActive
-                                      ? const Color(0xFF0B1F3A)
-                                      : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Featured Rentals',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF0B1F3A),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => context.go('/explore'),
-                      child: Text(
-                        'See all',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF2D7FF9),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: _featuredRentals.length,
-                  itemBuilder: (context, index) {
-                    final vehicle = _featuredRentals[index];
-                    return GestureDetector(
-                      onTap: () => context.push('/vehicle-details'),
-                      child: Container(
-                        width: 220,
-                        margin: const EdgeInsets.only(right: 16.0),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16.0), // GariLinkRadius.card
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(16.0),
-                                topRight: Radius.circular(16.0),
-                              ),
-                              child: Container(
-                                height: 120,
-                                width: double.infinity,
-                                color: const Color(0xFFE2E8F0),
-                                child: Image.asset(
-                                  vehicle['image'] as String,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Center(child: Icon(Icons.directions_car, color: Colors.grey)),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    vehicle['name'] as String,
-                                    style: GoogleFonts.inter(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: const Color(0xFF0B1F3A),
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '\$${vehicle['price']}/day',
-                                        style: GoogleFonts.inter(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: const Color(0xFF2D7FF9),
-                                        ),
-                                      ),
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.star, color: Colors.amber, size: 14),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            '${vehicle['rating']}',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              color: const Color(0xFF64748B),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Nearby Vehicles',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF0B1F3A),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => context.go('/explore'),
-                      child: Text(
-                        'See all',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF2D7FF9),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Container(
-                  height: 180,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.location_on,
-                      size: 48,
-                      color: Color(0xFF2D7FF9),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: SizedBox(
-                  height: 80,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    itemCount: _nearbyVehicles.length,
-                    itemBuilder: (context, index) {
-                      final vehicle = _nearbyVehicles[index];
-                      return Container(
-                        width: 80,
-                        margin: const EdgeInsets.only(right: 12.0),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12.0), // GariLinkRadius.image
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12.0),
-                          child: Container(
-                            color: const Color(0xFFE2E8F0),
-                            child: Image.asset(
-                              vehicle['image'] as String,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Center(child: Icon(Icons.directions_car, color: Colors.grey)),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 32),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget get _locationContent => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 340),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Where do you need it?',
+                  style: GariLinkTypography.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose an area or use your current location.',
+                  style: GariLinkTypography.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            key: const Key('use-current-location'),
+            onPressed: _locating ? null : _useCurrentLocation,
+            icon: _locating
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.my_location_rounded, size: 18),
+            label: const Text('Use my location'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      Semantics(
+        button: true,
+        label: 'Choose area. Current selection: $_locationLabel',
+        child: InkWell(
+          key: const Key('manual-location-field'),
+          borderRadius: BorderRadius.circular(GariLinkRadius.input),
+          onTap: _chooseArea,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 56),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: GariLinkColors.neutral50,
+              borderRadius: BorderRadius.circular(GariLinkRadius.input),
+              border: Border.all(color: GariLinkColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  color: GariLinkColors.accent,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _locationLabel,
+                    style: GariLinkTypography.bodyMedium.copyWith(
+                      color: _searchLocation.location == null
+                          ? GariLinkColors.textMuted
+                          : GariLinkColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: GariLinkColors.textMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+      FilledButton.icon(
+        key: const Key('find-vehicles-button'),
+        onPressed: _findVehicles,
+        icon: const Icon(Icons.search_rounded),
+        label: const Text('Find vehicles'),
+      ),
+    ],
+  );
+
+  String get _locationLabel {
+    final location = _searchLocation.location;
+    if (location == null) return 'Search for a city, town or area';
+    return [
+      location.locality,
+      location.city,
+    ].whereType<String>().where((value) => value.isNotEmpty).join(', ');
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.name});
+  final String name;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'GariLink',
+              style: GariLinkTypography.titleLarge.copyWith(
+                color: GariLinkColors.accent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Vehicles for the jobs that move you',
+              style: GariLinkTypography.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      Semantics(
+        button: true,
+        label: 'Open profile for $name',
+        child: InkWell(
+          key: const Key('home-profile-action'),
+          customBorder: const CircleBorder(),
+          onTap: () => context.go('/profile'),
+          child: CircleAvatar(
+            radius: 22,
+            backgroundColor: GariLinkColors.primary,
+            child: Text(
+              name.characters.first.toUpperCase(),
+              style: GariLinkTypography.titleMedium.copyWith(
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _VehicleHero extends StatelessWidget {
+  const _VehicleHero();
+  @override
+  Widget build(BuildContext context) {
+    final baseHeight = MediaQuery.sizeOf(context).width <= 340 ? 132.0 : 148.0;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final accessibleHeight = baseHeight + ((textScale - 1).clamp(0, 1) * 196);
+    return Semantics(
+      image: true,
+      label: 'Cars, an SUV and a truck ready for different journeys',
+      child: Container(
+        key: const Key('home-vehicle-hero'),
+        height: accessibleHeight,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [GariLinkShadows.softOverlay],
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/home/garilink_home_hero.jpg',
+              key: const Key('home-hero-photo'),
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              cacheWidth: 1280,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => const Center(
+                child: Icon(
+                  Icons.image_not_supported_outlined,
+                  color: GariLinkColors.textMuted,
+                ),
+              ),
+            ),
+            const DecoratedBox(
+              key: Key('home-hero-gradient'),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.center,
+                  colors: [Color(0xD90B1F3A), Color(0x3D0B1F3A)],
+                  stops: [0, .68],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Transport for\nevery move.',
+                        key: const Key('home-hero-headline'),
+                        style: GariLinkTypography.largeTitle.copyWith(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          height: 1.03,
+                          shadows: const [
+                            Shadow(color: Color(0x52000000), blurRadius: 8),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Cars, SUVs, pickups and trucks\nfor people, goods and businesses.',
+                        key: const Key('home-hero-supporting-copy'),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: GariLinkTypography.bodySmall.copyWith(
+                          color: const Color(0xFFF8FAFC),
+                          fontSize: 10.5,
+                          height: 1.25,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Surface extends StatelessWidget {
+  const _Surface({required this.child, this.tint = GariLinkColors.surface});
+  final Widget child;
+  final Color tint;
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: tint,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: const [GariLinkShadows.card],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GariLinkSpacing.md,
+        vertical: GariLinkSpacing.lg,
+      ),
+      child: child,
+    ),
+  );
+}
+
+class _PopularCategory {
+  const _PopularCategory(
+    this.title,
+    this.subtitle,
+    this.assetPath,
+    this.color,
+    this.need,
+  );
+  final String title;
+  final String subtitle;
+  final String assetPath;
+  final Color color;
+  final TransportNeed need;
+}
+
+const _popularCategories = <_PopularCategory>[
+  _PopularCategory(
+    'Comfortable cars',
+    'For daily trips and city travel',
+    'assets/images/home/category_cars.jpg',
+    Color(0xFF2563EB),
+    TransportNeed(purpose: TransportPurpose.cityTravel),
+  ),
+  _PopularCategory(
+    'SUVs',
+    'Space for family and groups',
+    'assets/images/home/category_suvs.jpg',
+    Color(0xFF7C3AED),
+    TransportNeed(purpose: TransportPurpose.familyOrGroup),
+  ),
+  _PopularCategory(
+    'Pickups',
+    'For work and business',
+    'assets/images/home/category_pickups.jpg',
+    Color(0xFFD97706),
+    TransportNeed(purpose: TransportPurpose.businessTransport),
+  ),
+];
+
+class _PopularCard extends StatelessWidget {
+  const _PopularCard({required this.item, required this.onTap});
+  final _PopularCategory item;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final extraWidth = (MediaQuery.textScalerOf(context).scale(100) - 100)
+        .clamp(0, 100)
+        .toDouble();
+    return Semantics(
+      button: true,
+      label: '${item.title}. ${item.subtitle}',
+      child: SizedBox(
+        width: 210 + extraWidth,
+        child: Material(
+          color: item.color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(GariLinkRadius.card),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(GariLinkRadius.card),
+            onTap: onTap,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: 78,
+                  child: Image.asset(
+                    item.assetPath,
+                    key: Key('popular-image-${item.title}'),
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                    cacheWidth: 480,
+                    excludeFromSemantics: true,
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.title, style: GariLinkTypography.cardTitle),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GariLinkTypography.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AreaPicker extends StatelessWidget {
+  const _AreaPicker();
+  static const _areas = <GariLocation>[
+    GariLocation(
+      latitude: -6.7924,
+      longitude: 39.2083,
+      city: 'Dar es Salaam',
+      source: LocationSource.placeSelection,
+    ),
+    GariLocation(
+      latitude: -3.3869,
+      longitude: 36.6830,
+      city: 'Arusha',
+      source: LocationSource.placeSelection,
+    ),
+    GariLocation(
+      latitude: -6.1630,
+      longitude: 35.7516,
+      city: 'Dodoma',
+      source: LocationSource.placeSelection,
+    ),
+    GariLocation(
+      latitude: -2.5164,
+      longitude: 32.9175,
+      city: 'Mwanza',
+      source: LocationSource.placeSelection,
+    ),
+  ];
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Choose a search area', style: GariLinkTypography.titleLarge),
+        const SizedBox(height: 4),
+        Text(
+          'We’ll search near the city centre. You can refine the pickup point later.',
+          style: GariLinkTypography.bodyMedium,
+        ),
+        const SizedBox(height: 12),
+        ..._areas.map(
+          (area) => ListTile(
+            minVerticalPadding: 12,
+            leading: const Icon(Icons.location_on_outlined),
+            title: Text(area.city!),
+            onTap: () => Navigator.pop(context, area),
+          ),
+        ),
+      ],
+    ),
+  );
 }

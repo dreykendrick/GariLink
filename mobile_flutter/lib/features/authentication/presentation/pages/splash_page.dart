@@ -1,87 +1,71 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
+import '../../../../shared/widgets/app_button.dart';
+import '../providers/auth_provider.dart';
 
-class SplashPage extends StatefulWidget {
+/// Navigation is owned by the router after hydration, not an arbitrary timer.
+class SplashPage extends ConsumerWidget {
   const SplashPage({super.key});
 
   @override
-  State<SplashPage> createState() => _SplashPageState();
-}
-
-class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeIn,
-      ),
-    );
-
-    _controller.forward();
-
-    // Auto navigate to onboarding after 2.5 seconds
-    Timer(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        context.go('/onboarding');
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authStateProvider);
+    final error = auth.errorMessage;
     return Scaffold(
-      backgroundColor: Colors.white, // Matches the logo background perfectly
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40.0),
-              child: Image.asset(
-                'assets/images/logo.jpg',
-                width: 280,
-                height: 280,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  // Fallback if image fails to load
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.directions_car_filled_outlined,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/images/logo.jpg',
+                    width: 220,
+                    height: 220,
+                    semanticLabel: 'GariLink',
+                    errorBuilder: (_, _, _) => const Text(
+                      'GariLink',
+                      style: TextStyle(
+                        fontSize: 32,
                         color: GariLinkColors.primary,
-                        size: 64,
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'GariLink',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: GariLinkColors.primary,
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (error == null) ...[
+                    const CircularProgressIndicator(
+                      semanticsLabel: 'Restoring your session',
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Getting things ready',
+                      style: TextStyle(color: GariLinkColors.textSecondary),
+                    ),
+                  ] else ...[
+                    Text(
+                      error,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: GariLinkColors.textPrimary),
+                    ),
+                    const SizedBox(height: 24),
+                    AppButton(
+                      text: 'Try again',
+                      onPressed: () =>
+                          ref.read(authStateProvider.notifier).hydrate(),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () =>
+                          ref.read(authStateProvider.notifier).logout(),
+                      child: const Text('Sign out of this device'),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),

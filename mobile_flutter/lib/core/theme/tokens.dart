@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'colors.dart';
+import 'dimensions.dart';
 import 'radius.dart';
 import 'spacing.dart';
 import 'shadows.dart';
@@ -9,6 +9,7 @@ typedef AppColors = GariLinkColors;
 typedef AppSpacing = GariLinkSpacing;
 typedef AppBorderRadius = GariLinkRadius;
 typedef AppShadows = GariLinkShadows;
+typedef AppDimensions = GariLinkDimensions;
 
 class AppLayout {
   static const double screenPadding = GariLinkSpacing.lg;

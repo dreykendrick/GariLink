@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/spacing.dart';
+import '../../core/theme/dimensions.dart';
+import '../../core/theme/typography.dart';
 import 'app_button.dart';
 
 class ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  const ErrorState({
-    required this.message,
-    this.onRetry,
-    super.key,
-  });
+  const ErrorState({required this.message, this.onRetry, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,30 +24,29 @@ class ErrorState extends StatelessWidget {
           children: [
             const Icon(
               Icons.error_outline_rounded,
-              size: 64,
+              size: GariLinkDimensions.emptyStateIcon,
               color: GariLinkColors.error,
             ),
             const SizedBox(height: GariLinkSpacing.lg),
-            const Text(
+            Text(
               'Oops! Something went wrong',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+              style: GariLinkTypography.sectionTitle,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: GariLinkSpacing.sm),
             Text(
               message,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDark ? GariLinkColors.darkTextMuted : GariLinkColors.textSecondary,
+                color: isDark
+                    ? GariLinkColors.darkTextMuted
+                    : GariLinkColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[
               const SizedBox(height: GariLinkSpacing.xl),
               AppButton(
-                text: 'Try Again',
+                text: 'Try again',
                 onPressed: onRetry,
                 variant: AppButtonVariant.secondary,
               ),

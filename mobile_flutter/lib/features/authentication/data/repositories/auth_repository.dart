@@ -1,6 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/api_client.dart';
+import '../../../../core/errors/app_exception.dart';
+import '../../../../core/validation/tanzanian_phone.dart';
 import '../../domain/entities/user.dart';
 import '../models/user_model.dart';
 
@@ -11,15 +12,16 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 abstract class AuthRepository {
   Future<AuthResponse> login(String identifier, String password);
-  Future<AuthResponse> register({
+  Future<RegistrationResult> register({
     required String phoneNumber,
     required String password,
     String? firstName,
     String? lastName,
   });
   Future<void> logout();
+  Future<void> requestOtp(String phoneNumber);
   Future<User> getMe();
-  Future<bool> verifyOtp({
+  Future<OtpVerificationResult> verifyOtp({
     required String phoneNumber,
     required String code,
     required String purpose,
@@ -31,6 +33,23 @@ abstract class AuthRepository {
     required String otpCode,
     required String newPassword,
   });
+}
+
+class RegistrationResult {
+  final AuthResponse? session;
+  final String? pendingPhone;
+  const RegistrationResult.authenticated(AuthResponse value)
+    : session = value,
+      pendingPhone = null;
+  const RegistrationResult.pending(String phone)
+    : session = null,
+      pendingPhone = phone;
+}
+
+class OtpVerificationResult {
+  final bool verified;
+  final AuthResponse? session;
+  const OtpVerificationResult({required this.verified, this.session});
 }
 
 class AuthResponse {
@@ -54,183 +73,137 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthResponse> login(String identifier, String password) async {
-    final cleanIdentifier = identifier.trim();
-    
-    // Query Supabase users table directly
-    final response = await _apiClient.get<List<dynamic>>(
-      '/users',
-      queryParameters: {
-        'or': '(phoneNumber.eq.$cleanIdentifier,email.eq.$cleanIdentifier)',
-        'select': '*,user_roles(role)',
+    final trimmed = identifier.trim();
+    final response = await _apiClient.post<Map<String, dynamic>>(
+      '/auth/login',
+      data: {
+        'identifier': trimmed.contains('@')
+            ? trimmed.toLowerCase()
+            : normalizeTanzanianPhone(trimmed),
+        'password': password,
       },
     );
-
-    if (response.isEmpty) {
-      throw Exception('Account not found. Please check phone number or email.');
-    }
-
-    final userData = response.first as Map<String, dynamic>;
-
-    final profile = UserProfileEntity(
-      id: userData['id'] as String,
-      userId: userData['id'] as String,
-      firstName: userData['firstName'] as String? ?? 'User',
-      lastName: userData['lastName'] as String? ?? '',
-      displayName: userData['displayName'] as String? ?? userData['phoneNumber'] as String,
-      photoUrl: userData['photoUrl'] as String?,
-      country: 'TZ',
-      completionPercentage: 100,
-    );
-
-    final user = User(
-      id: userData['id'] as String,
-      phoneNumber: userData['phoneNumber'] as String,
-      email: userData['email'] as String?,
-      roles: const [UserRole.customer],
-      isPhoneVerified: userData['isPhoneVerified'] as bool? ?? true,
-      isEmailVerified: userData['isEmailVerified'] as bool? ?? true,
-      profile: profile,
-      capabilities: const [],
-    );
-
-    // Generate a valid Supabase bearer token
-    final token = ApiClient.supabaseAnonKey;
-
-    return AuthResponse(
-      accessToken: token,
-      refreshToken: token,
-      user: user,
-      sessionId: user.id,
-    );
+    return _parseAuthResponse(response);
   }
 
   @override
-  Future<AuthResponse> register({
+  Future<RegistrationResult> register({
     required String phoneNumber,
     required String password,
     String? firstName,
     String? lastName,
   }) async {
-    final cleanPhone = phoneNumber.trim();
-
-    // Insert user into Supabase users table
-    final userInsertResponse = await _apiClient.post<List<dynamic>>(
-      '/users',
+    final normalizedPhone = normalizeTanzanianPhone(phoneNumber);
+    final response = await _apiClient.post<Map<String, dynamic>>(
+      '/auth/register',
       data: {
-        'phoneNumber': cleanPhone,
-        'passwordHash': password,
-        'isActive': true,
-        'isPhoneVerified': true,
-        'isEmailVerified': false,
-      },
-      options: Options(headers: {'Prefer': 'return=representation'}),
-    );
-
-    final userData = userInsertResponse.first as Map<String, dynamic>;
-    final userId = userData['id'] as String;
-
-    // Grant default role CUSTOMER
-    await _apiClient.post<void>(
-      '/user_roles',
-      data: {
-        'userId': userId,
-        'role': 'CUSTOMER',
+        'phoneNumber': normalizedPhone,
+        'password': password,
+        'firstName': ?firstName,
+        'lastName': ?lastName,
       },
     );
-
-    final profile = UserProfileEntity(
-      id: userId,
-      userId: userId,
-      firstName: firstName ?? 'User',
-      lastName: lastName ?? '',
-      displayName: '$firstName $lastName'.trim(),
-      country: 'TZ',
-      completionPercentage: 80,
-    );
-
-    final user = User(
-      id: userId,
-      phoneNumber: cleanPhone,
-      roles: const [UserRole.customer],
-      isPhoneVerified: true,
-      isEmailVerified: false,
-      profile: profile,
-      capabilities: const [],
-    );
-
-    return AuthResponse(
-      accessToken: ApiClient.supabaseAnonKey,
-      refreshToken: ApiClient.supabaseAnonKey,
-      user: user,
-      sessionId: userId,
-    );
+    if (response['requiresVerification'] == true) {
+      return RegistrationResult.pending(normalizedPhone);
+    }
+    return RegistrationResult.authenticated(_parseAuthResponse(response));
   }
 
   @override
   Future<void> logout() async {
-    // Local session clearing
+    await _apiClient.post<void>('/auth/logout');
   }
 
   @override
   Future<User> getMe() async {
-    final response = await _apiClient.get<List<dynamic>>(
-      '/users',
-      queryParameters: {
-        'limit': 1,
-        'select': '*,user_roles(role)',
-      },
-    );
-
-    if (response.isEmpty) {
-      throw Exception('User profile not found.');
-    }
-
-    final userData = response.first as Map<String, dynamic>;
-
-    final profile = UserProfileEntity(
-      id: userData['id'] as String,
-      userId: userData['id'] as String,
-      firstName: userData['firstName'] as String? ?? 'User',
-      lastName: userData['lastName'] as String? ?? '',
-      displayName: userData['displayName'] as String? ?? userData['phoneNumber'] as String,
-      photoUrl: userData['photoUrl'] as String?,
-      country: 'TZ',
-      completionPercentage: 100,
-    );
-
-    return User(
-      id: userData['id'] as String,
-      phoneNumber: userData['phoneNumber'] as String,
-      email: userData['email'] as String?,
-      roles: const [UserRole.customer],
-      isPhoneVerified: userData['isPhoneVerified'] as bool? ?? true,
-      isEmailVerified: userData['isEmailVerified'] as bool? ?? true,
-      profile: profile,
-      capabilities: const [],
-    );
+    final response = await _apiClient.get<Map<String, dynamic>>('/me');
+    return UserModel.fromJson(response);
   }
 
   @override
-  Future<bool> verifyOtp({
+  Future<OtpVerificationResult> verifyOtp({
     required String phoneNumber,
     required String code,
     required String purpose,
   }) async {
-    return true;
+    final response = await _apiClient.post<Map<String, dynamic>>(
+      '/auth/otp/verify',
+      data: {
+        'phoneNumber': normalizeTanzanianPhone(phoneNumber),
+        'code': code,
+        'purpose': purpose,
+      },
+    );
+    return OtpVerificationResult(
+      verified: response['verified'] == true,
+      session: response['accessToken'] is String
+          ? _parseAuthResponse(response)
+          : null,
+    );
+  }
+
+  @override
+  Future<void> requestOtp(String phoneNumber) async {
+    await _apiClient.post<void>(
+      '/auth/otp/request',
+      data: {
+        'phoneNumber': normalizeTanzanianPhone(phoneNumber),
+        'purpose': 'PHONE_VERIFICATION',
+      },
+    );
   }
 
   @override
   Future<UserProfileEntity> updateProfile(Map<String, dynamic> data) async {
-    return UserProfileModel.fromJson(data);
+    final response = await _apiClient.post<Map<String, dynamic>>(
+      '/profile',
+      data: data,
+    );
+    return UserProfileModel.fromJson(response);
   }
 
   @override
-  Future<void> forgotPassword(String phoneNumber) async {}
+  Future<void> forgotPassword(String phoneNumber) async {
+    await _apiClient.post<void>(
+      '/auth/password/forgot',
+      data: {'phoneNumber': normalizeTanzanianPhone(phoneNumber)},
+    );
+  }
 
   @override
   Future<void> resetPassword({
     required String phoneNumber,
     required String otpCode,
     required String newPassword,
-  }) async {}
+  }) async {
+    await _apiClient.post<void>(
+      '/auth/password/reset',
+      data: {
+        'phoneNumber': normalizeTanzanianPhone(phoneNumber),
+        'otpCode': otpCode,
+        'newPassword': newPassword,
+      },
+    );
+  }
+
+  AuthResponse _parseAuthResponse(Map<String, dynamic> json) {
+    final accessToken = json['accessToken'];
+    final refreshToken = json['refreshToken'];
+    if (accessToken is! String ||
+        accessToken.isEmpty ||
+        refreshToken is! String ||
+        refreshToken.isEmpty ||
+        json['user'] is! Map<String, dynamic>) {
+      throw const ServerException(
+        'Sign-in returned an incomplete session. Please try again.',
+      );
+    }
+    final session = json['session'] as Map<String, dynamic>?;
+    return AuthResponse(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      user: UserModel.fromJson(json['user'] as Map<String, dynamic>),
+      sessionId: session?['id'] as String? ?? '',
+    );
+  }
 }

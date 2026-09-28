@@ -1,22 +1,38 @@
 import {
-  Controller, Post, Get, Patch, Delete, Body, Param, Query, HttpCode, HttpStatus
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { CurrentUser } from '../../../../core/security/decorators/current-user.decorator';
-import { AccessJwtPayload } from '../../../../core/security/token.service';
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { VehicleAccessGuard } from "./vehicle-access.guard";
+import { CurrentUser } from "../../../../core/security/decorators/current-user.decorator";
+import { AccessJwtPayload } from "../../../../core/security/token.service";
 
-import { CreateVehicleDto, UpdateVehicleDto, VehicleQueryDto } from '../../application/dto/vehicle.dto';
-import { CreateVehicleUseCase } from '../../application/use-cases/create-vehicle.use-case';
-import { UpdateVehicleUseCase } from '../../application/use-cases/update-vehicle.use-case';
-import { ArchiveVehicleUseCase } from '../../application/use-cases/archive-vehicle.use-case';
-import { RestoreVehicleUseCase } from '../../application/use-cases/restore-vehicle.use-case';
-import { DeleteVehicleUseCase } from '../../application/use-cases/delete-vehicle.use-case';
-import { GetVehicleUseCase } from '../../application/use-cases/get-vehicle.use-case';
-import { ListWorkspaceVehiclesUseCase } from '../../application/use-cases/list-workspace-vehicles.use-case';
+import {
+  CreateVehicleDto,
+  UpdateVehicleDto,
+  VehicleQueryDto,
+} from "../../application/dto/vehicle.dto";
+import { CreateVehicleUseCase } from "../../application/use-cases/create-vehicle.use-case";
+import { UpdateVehicleUseCase } from "../../application/use-cases/update-vehicle.use-case";
+import { ArchiveVehicleUseCase } from "../../application/use-cases/archive-vehicle.use-case";
+import { RestoreVehicleUseCase } from "../../application/use-cases/restore-vehicle.use-case";
+import { DeleteVehicleUseCase } from "../../application/use-cases/delete-vehicle.use-case";
+import { GetVehicleUseCase } from "../../application/use-cases/get-vehicle.use-case";
+import { ListWorkspaceVehiclesUseCase } from "../../application/use-cases/list-workspace-vehicles.use-case";
 
-@ApiTags('Vehicles')
+@ApiTags("Vehicles")
 @ApiBearerAuth()
-@Controller('vehicles')
+@Controller("vehicles")
+@UseGuards(VehicleAccessGuard)
 export class VehicleController {
   constructor(
     private readonly createVehicleUseCase: CreateVehicleUseCase,
@@ -29,11 +45,17 @@ export class VehicleController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Add a vehicle to a workspace' })
-  async create(@Body() dto: CreateVehicleDto, @CurrentUser() user: AccessJwtPayload) {
-    const result = await this.createVehicleUseCase.execute({ ...dto, userId: user.userId });
+  @ApiOperation({ summary: "Add a vehicle to a workspace" })
+  async create(
+    @Body() dto: CreateVehicleDto,
+    @CurrentUser() user: AccessJwtPayload,
+  ) {
+    const result = await this.createVehicleUseCase.execute({
+      ...dto,
+      userId: user.userId,
+    });
     if (result.isFail) throw result.error;
-    
+
     const vehicle = result.value;
     return {
       id: vehicle.id,
@@ -47,15 +69,18 @@ export class VehicleController {
     };
   }
 
-  @Get('workspace/:workspaceId')
-  @ApiOperation({ summary: 'List vehicles in a workspace' })
+  @Get("workspace/:workspaceId")
+  @ApiOperation({ summary: "List vehicles in a workspace" })
   async listWorkspaceVehicles(
-    @Param('workspaceId') workspaceId: string,
-    @Query() query: VehicleQueryDto
+    @Param("workspaceId") workspaceId: string,
+    @Query() query: VehicleQueryDto,
   ) {
-    const result = await this.listWorkspaceVehiclesUseCase.execute(workspaceId, query);
+    const result = await this.listWorkspaceVehiclesUseCase.execute(
+      workspaceId,
+      query,
+    );
     if (result.isFail) throw result.error;
-    
+
     return {
       ...result.value,
       data: result.value.data.map((vehicle) => ({
@@ -71,12 +96,12 @@ export class VehicleController {
     };
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get vehicle details' })
-  async get(@Param('id') id: string) {
+  @Get(":id")
+  @ApiOperation({ summary: "Get vehicle details" })
+  async get(@Param("id") id: string) {
     const result = await this.getVehicleUseCase.execute(id);
     if (result.isFail) throw result.error;
-    
+
     const vehicle = result.value;
     return {
       id: vehicle.id,
@@ -90,16 +115,20 @@ export class VehicleController {
     };
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update vehicle' })
+  @Patch(":id")
+  @ApiOperation({ summary: "Update vehicle" })
   async update(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() dto: UpdateVehicleDto,
     @CurrentUser() user: AccessJwtPayload,
   ) {
-    const result = await this.updateVehicleUseCase.execute(id, dto, user.userId);
+    const result = await this.updateVehicleUseCase.execute(
+      id,
+      dto,
+      user.userId,
+    );
     if (result.isFail) throw result.error;
-    
+
     const vehicle = result.value;
     return {
       id: vehicle.id,
@@ -113,10 +142,10 @@ export class VehicleController {
     };
   }
 
-  @Delete(':id')
+  @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Retire (soft delete) a vehicle' })
-  async delete(@Param('id') id: string, @CurrentUser() user: AccessJwtPayload) {
+  @ApiOperation({ summary: "Retire (soft delete) a vehicle" })
+  async delete(@Param("id") id: string, @CurrentUser() user: AccessJwtPayload) {
     const result = await this.deleteVehicleUseCase.execute(id, user.userId);
     if (result.isFail) throw result.error;
   }

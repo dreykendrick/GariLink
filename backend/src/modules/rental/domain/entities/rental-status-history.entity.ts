@@ -1,5 +1,5 @@
-import { Entity } from '../../../../shared/domain/entity.base';
-import { RentalStatus } from '@prisma/client';
+import { Entity } from "../../../../shared/domain/entity.base";
+import { RentalStatus } from "@prisma/client";
 
 export class RentalStatusHistory extends Entity<string> {
   constructor(

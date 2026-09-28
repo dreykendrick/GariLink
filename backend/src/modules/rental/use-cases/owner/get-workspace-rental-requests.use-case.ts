@@ -1,25 +1,32 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { IRentalRequestRepository } from '../../domain/repositories/rental-request.repository.interface';
-import { PrismaService } from '../../../../shared/infrastructure/prisma.service';
-import { RentalRequest } from '../../domain/entities/rental-request.entity';
-import { Result } from '../../../../shared/domain/result';
-import { AppError } from '../../../../core/errors/app-error';
-import { RentalAccessDeniedError } from '../../domain/errors/rental.errors';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../../../shared/infrastructure/prisma.service";
+import {
+  RentalRequestSummary,
+  rentalSummarySelect,
+  toRentalRequestSummary,
+} from "../rental-request-summary";
+import { Result } from "../../../../shared/domain/result";
+import { AppError } from "../../../../core/errors/app-error";
+import { RentalAccessDeniedError } from "../../domain/errors/rental.errors";
+import { canManageWorkspaceRentals } from "./owner-rental-access";
 
 @Injectable()
 export class GetWorkspaceRentalRequestsUseCase {
-  constructor(
-    @Inject('IRentalRequestRepository') private repo: IRentalRequestRepository,
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  async execute(userId: string, workspaceId: string): Promise<Result<RentalRequest[], AppError>> {
-    const member = await this.prisma.workspaceMember.findFirst({
-      where: { workspaceId, userId }
+  async execute(
+    userId: string,
+    workspaceId: string,
+  ): Promise<Result<RentalRequestSummary[], AppError>> {
+    if (!(await canManageWorkspaceRentals(this.prisma, workspaceId, userId))) {
+      return Result.fail(new RentalAccessDeniedError());
+    }
+
+    const rentals = await this.prisma.rentalRequest.findMany({
+      where: { workspaceId },
+      select: rentalSummarySelect,
+      orderBy: { createdAt: "desc" },
     });
-    if (!member) return Result.fail(new RentalAccessDeniedError());
-
-    const rentals = await this.repo.findByWorkspaceId(workspaceId);
-    return Result.ok(rentals);
+    return Result.ok(rentals.map(toRentalRequestSummary));
   }
 }

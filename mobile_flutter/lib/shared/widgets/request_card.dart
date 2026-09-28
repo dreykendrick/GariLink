@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:garilink_mobile/core/theme/theme.dart';
 
 class RequestCard extends StatelessWidget {
   final String vehicleName;
@@ -12,7 +11,7 @@ class RequestCard extends StatelessWidget {
   final VoidCallback onAccept;
 
   const RequestCard({
-    Key? key,
+    super.key,
     required this.vehicleName,
     required this.assetPath,
     required this.renterName,
@@ -20,7 +19,7 @@ class RequestCard extends StatelessWidget {
     required this.price,
     required this.onReject,
     required this.onAccept,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +31,7 @@ class RequestCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -121,9 +120,7 @@ class RequestCard extends StatelessWidget {
                   ),
                   child: Text(
                     'Reject',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -142,9 +139,7 @@ class RequestCard extends StatelessWidget {
                   ),
                   child: Text(
                     'Accept',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -155,4 +150,3 @@ class RequestCard extends StatelessWidget {
     );
   }
 }
-

@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../../shared/infrastructure/prisma.service';
-import { IRefreshTokenRepository } from '../../domain/repositories/refresh-token.repository.interface';
-import { RefreshToken } from '../../domain/entities/refresh-token.entity';
-import { RefreshToken as PrismaToken } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../../../shared/infrastructure/prisma.service";
+import { IRefreshTokenRepository } from "../../domain/repositories/refresh-token.repository.interface";
+import { RefreshToken } from "../../domain/entities/refresh-token.entity";
+import { RefreshToken as PrismaToken } from "@prisma/client";
 
 @Injectable()
 export class PrismaRefreshTokenRepository implements IRefreshTokenRepository {
@@ -10,8 +10,15 @@ export class PrismaRefreshTokenRepository implements IRefreshTokenRepository {
 
   private toDomain(t: PrismaToken): RefreshToken {
     return new RefreshToken(
-      t.id, t.token, t.userId, t.sessionId, t.familyId,
-      t.isRevoked, t.expiresAt, t.replacedByTokenId, t.createdAt,
+      t.id,
+      t.token,
+      t.userId,
+      t.sessionId,
+      t.familyId,
+      t.isRevoked,
+      t.expiresAt,
+      t.replacedByTokenId,
+      t.createdAt,
     );
   }
 
@@ -23,6 +30,42 @@ export class PrismaRefreshTokenRepository implements IRefreshTokenRepository {
   async findByToken(token: string): Promise<RefreshToken | null> {
     const r = await this.prisma.refreshToken.findUnique({ where: { token } });
     return r ? this.toDomain(r) : null;
+  }
+
+  async rotate(
+    previousId: string,
+    replacement: RefreshToken,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const consumed = await tx.refreshToken.updateMany({
+        where: {
+          id: previousId,
+          isRevoked: false,
+          expiresAt: { gt: new Date() },
+          userId: replacement.userId,
+          sessionId: replacement.sessionId,
+          familyId: replacement.familyId,
+          session: { isActive: true },
+        },
+        data: { isRevoked: true },
+      });
+      if (consumed.count !== 1) return false;
+      await tx.refreshToken.create({
+        data: {
+          id: replacement.id,
+          token: replacement.token,
+          userId: replacement.userId,
+          sessionId: replacement.sessionId,
+          familyId: replacement.familyId,
+          expiresAt: replacement.expiresAt,
+        },
+      });
+      await tx.refreshToken.update({
+        where: { id: previousId },
+        data: { replacedByTokenId: replacement.id },
+      });
+      return true;
+    });
   }
 
   async save(token: RefreshToken): Promise<void> {

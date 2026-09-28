@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:garilink_mobile/core/theme/theme.dart';
 
 class FilterChipBar extends StatelessWidget {
   final List<String> options;
@@ -8,11 +7,11 @@ class FilterChipBar extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   const FilterChipBar({
-    Key? key,
+    super.key,
     required this.options,
     required this.selectedIndex,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +33,9 @@ class FilterChipBar extends StatelessWidget {
                   color: isSelected ? const Color(0xFF2D7FF9) : Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0),
+                    color: isSelected
+                        ? Colors.transparent
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: Text(
@@ -42,7 +43,9 @@ class FilterChipBar extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected ? Colors.white : Colors.grey[700], // textSecondary mapping
+                    color: isSelected
+                        ? Colors.white
+                        : Colors.grey[700], // textSecondary mapping
                   ),
                 ),
               ),
@@ -53,4 +56,3 @@ class FilterChipBar extends StatelessWidget {
     );
   }
 }
-

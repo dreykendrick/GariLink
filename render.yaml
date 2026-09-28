@@ -9,12 +9,14 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: postgresql://postgres.orlrgjjbmnjxqbhheago:Kibaja0658%23@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?pgbouncer=true
+        sync: false
       - key: JWT_ACCESS_SECRET
-        value: garilink_access_secret_key_minimum_32_chars_secure
+        generateValue: true
       - key: JWT_REFRESH_SECRET
-        value: garilink_refresh_secret_key_minimum_32_chars_secure
+        generateValue: true
       - key: JWT_ACCESS_EXPIRES_IN
         value: 15m
       - key: JWT_REFRESH_EXPIRES_IN
         value: 30d
+      - key: CORS_ORIGINS
+        sync: false

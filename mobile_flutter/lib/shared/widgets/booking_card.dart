@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:garilink_mobile/core/theme/theme.dart';
 
 class BookingCard extends StatelessWidget {
   final String vehicleName;
@@ -11,14 +10,14 @@ class BookingCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const BookingCard({
-    Key? key,
+    super.key,
     required this.vehicleName,
     required this.assetPath,
     required this.dateRange,
     required this.price,
     required this.status,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   Color _getStatusColor() {
     switch (status.toLowerCase()) {
@@ -46,7 +45,7 @@ class BookingCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -95,7 +94,7 @@ class BookingCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: _getStatusColor().withOpacity(0.1),
+                          color: _getStatusColor().withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -135,4 +134,3 @@ class BookingCard extends StatelessWidget {
     );
   }
 }
-

@@ -1,50 +1,59 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import { OtpPurpose, CapabilityStatus, CapabilityType, UserRole } from '@prisma/client';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable } from "@nestjs/common";
+import { v4 as uuidv4 } from "uuid";
+import { createHash, randomInt } from "crypto";
+import {
+  OtpPurpose,
+  CapabilityStatus,
+  CapabilityType,
+  UserRole,
+} from "@prisma/client";
+import { ConfigService } from "@nestjs/config";
 
-import { Result } from '../../../../shared/domain/result';
-import { AppError } from '../../../../core/errors/app-error';
-import { IPasswordHasher, HASHING_SERVICE } from '../../../../core/security/hashing.interface';
-import { TokenService } from '../../../../core/security/token.service';
-import { AuditLogService } from '../../../audit/audit-log.service';
+import { Result } from "../../../../shared/domain/result";
+import { AppError } from "../../../../core/errors/app-error";
+import {
+  IPasswordHasher,
+  HASHING_SERVICE,
+} from "../../../../core/security/hashing.interface";
+import { TokenService } from "../../../../core/security/token.service";
+import { AuditLogService } from "../../../audit/audit-log.service";
 
-import { User } from '../../domain/entities/user.entity';
-import { Profile } from '../../domain/entities/profile.entity';
-import { Session } from '../../domain/entities/session.entity';
-import { RefreshToken } from '../../domain/entities/refresh-token.entity';
-import { Otp } from '../../domain/entities/otp.entity';
-import { UserCapability } from '../../domain/entities/user-capability.entity';
-import { Email } from '../../domain/value-objects/email.vo';
-import { PhoneNumber } from '../../domain/value-objects/phone-number.vo';
-import { Password } from '../../domain/value-objects/password.vo';
+import { User } from "../../domain/entities/user.entity";
+import { Profile } from "../../domain/entities/profile.entity";
+import { Session } from "../../domain/entities/session.entity";
+import { RefreshToken } from "../../domain/entities/refresh-token.entity";
+import { Otp } from "../../domain/entities/otp.entity";
+import { UserCapability } from "../../domain/entities/user-capability.entity";
+import { Email } from "../../domain/value-objects/email.vo";
+import { PhoneNumber } from "../../domain/value-objects/phone-number.vo";
+import { Password } from "../../domain/value-objects/password.vo";
 
 import {
   USER_REPOSITORY,
   IUserRepository,
-} from '../../domain/repositories/user.repository.interface';
+} from "../../domain/repositories/user.repository.interface";
 import {
   PROFILE_REPOSITORY,
   IProfileRepository,
-} from '../../domain/repositories/profile.repository.interface';
+} from "../../domain/repositories/profile.repository.interface";
 import {
   SESSION_REPOSITORY,
   ISessionRepository,
-} from '../../domain/repositories/session.repository.interface';
+} from "../../domain/repositories/session.repository.interface";
 import {
   REFRESH_TOKEN_REPOSITORY,
   IRefreshTokenRepository,
-} from '../../domain/repositories/refresh-token.repository.interface';
+} from "../../domain/repositories/refresh-token.repository.interface";
 import {
   OTP_REPOSITORY,
   IOtpRepository,
-} from '../../domain/repositories/otp.repository.interface';
+} from "../../domain/repositories/otp.repository.interface";
 import {
   USER_CAPABILITY_REPOSITORY,
   IUserCapabilityRepository,
-} from '../../domain/repositories/user-capability.repository.interface';
+} from "../../domain/repositories/user-capability.repository.interface";
 
-import { SMS_PROVIDER, ISmsProvider } from '../ports/sms-provider.port';
+import { SMS_PROVIDER, ISmsProvider } from "../ports/sms-provider.port";
 
 import {
   UserNotFoundError,
@@ -63,7 +72,7 @@ import {
   CapabilityAlreadyRequestedError,
   CapabilityNotFoundError,
   ProfileNotFoundError,
-} from '../../domain/errors/identity.errors';
+} from "../../domain/errors/identity.errors";
 
 // ─── Shared response types ────────────────────────────────────────────────────
 
@@ -80,6 +89,14 @@ export interface AuthResponse {
   };
   session: { id: string; deviceName: string | null };
 }
+
+/**
+ * Refresh tokens are high-entropy credentials, so they do not need the slow,
+ * salted password hashing algorithm. A deterministic digest lets us locate a
+ * presented token without ever storing the bearer credential itself.
+ */
+export const hashRefreshToken = (token: string): string =>
+  createHash("sha256").update(token, "utf8").digest("hex");
 
 // ─── RegisterUserUseCase ─────────────────────────────────────────────────────
 
@@ -169,10 +186,10 @@ export class RegisterUserUseCase {
         sessionId: session.id,
         familyId,
       });
-      const refreshTokenHash = await this.hasher.hash(rawRefreshToken);
+      const refreshTokenHash = hashRefreshToken(rawRefreshToken);
 
       const expiryMs = this.parseExpiry(
-        this.configService.get<string>('app.jwt.refreshExpiresIn') ?? '30d',
+        this.configService.get<string>("app.jwt.refreshExpiresIn") ?? "30d",
       );
       const refreshToken = RefreshToken.create({
         id: uuidv4(),
@@ -186,7 +203,7 @@ export class RegisterUserUseCase {
 
       // 8. Send phone verification OTP
       const otpCode = this.generateOtpCode(
-        this.configService.get<number>('app.otp.length') ?? 6,
+        this.configService.get<number>("app.otp.length") ?? 6,
       );
       const otpHash = await this.hasher.hash(otpCode);
       const otp = Otp.generate(
@@ -195,16 +212,20 @@ export class RegisterUserUseCase {
         userId,
         OtpPurpose.PHONE_VERIFICATION,
         otpHash,
-        this.configService.get<number>('app.otp.expiryMinutes') ?? 10,
+        this.configService.get<number>("app.otp.expiryMinutes") ?? 10,
       );
       await this.otps.save(otp);
-      await this.sms.sendOtp(phoneVO.value, otpCode, OtpPurpose.PHONE_VERIFICATION);
+      await this.sms.sendOtp(
+        phoneVO.value,
+        otpCode,
+        OtpPurpose.PHONE_VERIFICATION,
+      );
 
       // 9. Audit log
       await this.auditLog.log({
-        action: 'user.registered',
+        action: "user.registered",
         actorId: userId,
-        subjectType: 'User',
+        subjectType: "User",
         subjectId: userId,
         ipAddress: input.ipAddress,
       });
@@ -229,9 +250,7 @@ export class RegisterUserUseCase {
   }
 
   private generateOtpCode(length: number): string {
-    return Math.floor(Math.random() * Math.pow(10, length))
-      .toString()
-      .padStart(length, '0');
+    return randomInt(0, Math.pow(10, length)).toString().padStart(length, "0");
   }
 
   private parseExpiry(expiry: string): number {
@@ -240,7 +259,10 @@ export class RegisterUserUseCase {
     const [, value, unit] = match;
     const v = parseInt(value, 10);
     const multipliers: Record<string, number> = {
-      s: 1000, m: 60000, h: 3600000, d: 86400000,
+      s: 1000,
+      m: 60000,
+      h: 3600000,
+      d: 86400000,
     };
     return v * (multipliers[unit] ?? 86400000);
   }
@@ -273,14 +295,20 @@ export class AuthenticateUserUseCase {
       const user = await this.users.findByIdentifier(input.identifier);
       if (!user) return Result.fail(new InvalidCredentialsError());
       if (!user.isActive) return Result.fail(new AccountInactiveError());
-      if (user.isLocked()) return Result.fail(new AccountLockedError(user.lockedUntil!));
+      if (user.isLocked())
+        return Result.fail(new AccountLockedError(user.lockedUntil!));
 
-      const passwordMatch = await this.hasher.compare(input.password, user.passwordHash);
+      const passwordMatch = await this.hasher.compare(
+        input.password,
+        user.passwordHash,
+      );
       if (!passwordMatch) {
         user.recordFailedLogin();
-        const maxAttempts = this.configService.get<number>('app.lockout.maxAttempts') ?? 5;
+        const maxAttempts =
+          this.configService.get<number>("app.lockout.maxAttempts") ?? 5;
         if (user.failedLoginAttempts >= maxAttempts) {
-          const lockDuration = this.configService.get<number>('app.lockout.durationMinutes') ?? 30;
+          const lockDuration =
+            this.configService.get<number>("app.lockout.durationMinutes") ?? 30;
           user.lock(new Date(Date.now() + lockDuration * 60 * 1000));
         }
         await this.users.save(user);
@@ -311,7 +339,7 @@ export class AuthenticateUserUseCase {
         sessionId: session.id,
         familyId,
       });
-      const refreshTokenHash = await this.hasher.hash(rawRefreshToken);
+      const refreshTokenHash = hashRefreshToken(rawRefreshToken);
 
       const expiryMs = 30 * 24 * 60 * 60 * 1000; // 30d default
       const refreshToken = RefreshToken.create({
@@ -325,9 +353,9 @@ export class AuthenticateUserUseCase {
       await this.refreshTokens.save(refreshToken);
 
       await this.auditLog.log({
-        action: 'user.login',
+        action: "user.login",
         actorId: user.id,
-        subjectType: 'User',
+        subjectType: "User",
         subjectId: user.id,
         ipAddress: input.ipAddress,
       });
@@ -361,18 +389,19 @@ export class RefreshTokenUseCase {
     @Inject(SESSION_REPOSITORY) private readonly sessions: ISessionRepository,
     @Inject(REFRESH_TOKEN_REPOSITORY)
     private readonly refreshTokens: IRefreshTokenRepository,
-    @Inject(HASHING_SERVICE) private readonly hasher: IPasswordHasher,
     private readonly tokenService: TokenService,
   ) {}
 
-  async execute(input: { refreshToken: string }): Promise<Result<AuthResponse, AppError>> {
+  async execute(input: {
+    refreshToken: string;
+  }): Promise<Result<AuthResponse, AppError>> {
     try {
       const payload = this.tokenService.verifyRefreshToken(input.refreshToken);
       if (!payload) return Result.fail(new RefreshTokenInvalidError());
 
       // Find stored token by comparing hash
       const storedToken = await this.refreshTokens.findByToken(
-        await this.hasher.hash(input.refreshToken),
+        hashRefreshToken(input.refreshToken),
       );
 
       if (!storedToken) {
@@ -392,13 +421,23 @@ export class RefreshTokenUseCase {
         return Result.fail(new RefreshTokenInvalidError());
       }
 
+      const session = await this.sessions.findById(storedToken.sessionId);
+      if (
+        !session?.isActive ||
+        session.userId !== storedToken.userId ||
+        payload.userId !== storedToken.userId ||
+        payload.sessionId !== storedToken.sessionId ||
+        payload.familyId !== storedToken.familyId
+      ) {
+        return Result.fail(new RefreshTokenInvalidError());
+      }
+
       const user = await this.users.findById(storedToken.userId);
-      if (!user || !user.isActive) return Result.fail(new RefreshTokenInvalidError());
+      if (!user || !user.isActive)
+        return Result.fail(new RefreshTokenInvalidError());
 
       // Rotate: revoke old, issue new
       const newTokenId = uuidv4();
-      storedToken.replace(newTokenId);
-      await this.refreshTokens.save(storedToken);
 
       const newAccessToken = this.tokenService.generateAccessToken({
         userId: user.id,
@@ -410,7 +449,7 @@ export class RefreshTokenUseCase {
         sessionId: storedToken.sessionId,
         familyId: storedToken.familyId,
       });
-      const newRefreshHash = await this.hasher.hash(rawNewRefresh);
+      const newRefreshHash = hashRefreshToken(rawNewRefresh);
 
       const newRefreshToken = RefreshToken.create({
         id: newTokenId,
@@ -420,9 +459,9 @@ export class RefreshTokenUseCase {
         familyId: storedToken.familyId,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       });
-      await this.refreshTokens.save(newRefreshToken);
-
-      const session = await this.sessions.findById(storedToken.sessionId);
+      if (!(await this.refreshTokens.rotate(storedToken.id, newRefreshToken))) {
+        return Result.fail(new RefreshTokenInvalidError());
+      }
       return Result.ok({
         accessToken: newAccessToken,
         refreshToken: rawNewRefresh,
@@ -434,7 +473,10 @@ export class RefreshTokenUseCase {
           isPhoneVerified: user.isPhoneVerified,
           isEmailVerified: user.isEmailVerified,
         },
-        session: { id: storedToken.sessionId, deviceName: session?.deviceName ?? null },
+        session: {
+          id: storedToken.sessionId,
+          deviceName: session?.deviceName ?? null,
+        },
       });
     } catch (error) {
       if (error instanceof AppError) return Result.fail(error);
@@ -454,7 +496,10 @@ export class LogoutUseCase {
     private readonly auditLog: AuditLogService,
   ) {}
 
-  async execute(input: { sessionId: string; userId: string }): Promise<Result<void, AppError>> {
+  async execute(input: {
+    sessionId: string;
+    userId: string;
+  }): Promise<Result<void, AppError>> {
     try {
       const session = await this.sessions.findById(input.sessionId);
       if (session) {
@@ -463,9 +508,9 @@ export class LogoutUseCase {
       }
       await this.refreshTokens.revokeAllBySessionId(input.sessionId);
       await this.auditLog.log({
-        action: 'user.logout',
+        action: "user.logout",
         actorId: input.userId,
-        subjectType: 'Session',
+        subjectType: "Session",
         subjectId: input.sessionId,
       });
       return Result.ok(undefined);
@@ -495,7 +540,8 @@ export class RequestOtpUseCase {
     try {
       PhoneNumber.create(input.phoneNumber);
 
-      const cooldown = this.configService.get<number>('app.otp.resendCooldownSeconds') ?? 60;
+      const cooldown =
+        this.configService.get<number>("app.otp.resendCooldownSeconds") ?? 60;
       const existing = await this.otps.findLatestByPhoneAndPurpose(
         input.phoneNumber,
         input.purpose,
@@ -509,12 +555,13 @@ export class RequestOtpUseCase {
       }
 
       const user = await this.users.findByPhoneNumber(input.phoneNumber);
-      const length = this.configService.get<number>('app.otp.length') ?? 6;
-      const otpCode = Math.floor(Math.random() * Math.pow(10, length))
+      const length = this.configService.get<number>("app.otp.length") ?? 6;
+      const otpCode = randomInt(0, Math.pow(10, length))
         .toString()
-        .padStart(length, '0');
+        .padStart(length, "0");
       const otpHash = await this.hasher.hash(otpCode);
-      const expiryMinutes = this.configService.get<number>('app.otp.expiryMinutes') ?? 10;
+      const expiryMinutes =
+        this.configService.get<number>("app.otp.expiryMinutes") ?? 10;
 
       const otp = Otp.generate(
         uuidv4(),
@@ -527,7 +574,7 @@ export class RequestOtpUseCase {
       await this.otps.save(otp);
       await this.sms.sendOtp(input.phoneNumber, otpCode, input.purpose);
 
-      return Result.ok({ message: 'OTP sent successfully' });
+      return Result.ok({ message: "OTP sent successfully" });
     } catch (error) {
       if (error instanceof AppError) return Result.fail(error);
       throw error;
@@ -559,7 +606,8 @@ export class VerifyOtpUseCase {
       if (!otp || otp.isVerified) return Result.fail(new OtpInvalidError());
       if (otp.isExpired()) return Result.fail(new OtpExpiredError());
 
-      const maxAttempts = this.configService.get<number>('app.otp.maxAttempts') ?? 5;
+      const maxAttempts =
+        this.configService.get<number>("app.otp.maxAttempts") ?? 5;
       if (otp.maxAttemptsReached(maxAttempts)) {
         return Result.fail(new OtpMaxAttemptsExceededError());
       }
@@ -609,10 +657,10 @@ export class ForgotPasswordUseCase {
     try {
       const user = await this.users.findByPhoneNumber(input.phoneNumber);
       if (user && user.isActive) {
-        const length = this.configService.get<number>('app.otp.length') ?? 6;
-        const otpCode = Math.floor(Math.random() * Math.pow(10, length))
+        const length = this.configService.get<number>("app.otp.length") ?? 6;
+        const otpCode = randomInt(0, Math.pow(10, length))
           .toString()
-          .padStart(length, '0');
+          .padStart(length, "0");
         const otpHash = await this.hasher.hash(otpCode);
         const otp = Otp.generate(
           uuidv4(),
@@ -620,15 +668,21 @@ export class ForgotPasswordUseCase {
           user.id,
           OtpPurpose.PASSWORD_RESET,
           otpHash,
-          this.configService.get<number>('app.otp.expiryMinutes') ?? 10,
+          this.configService.get<number>("app.otp.expiryMinutes") ?? 10,
         );
         await this.otps.save(otp);
-        await this.sms.sendOtp(input.phoneNumber, otpCode, OtpPurpose.PASSWORD_RESET);
+        await this.sms.sendOtp(
+          input.phoneNumber,
+          otpCode,
+          OtpPurpose.PASSWORD_RESET,
+        );
       }
     } catch {
       // Intentionally swallow errors for enumeration safety
     }
-    return Result.ok({ message: 'If that phone number is registered, you will receive an OTP.' });
+    return Result.ok({
+      message: "If that phone number is registered, you will receive an OTP.",
+    });
   }
 }
 
@@ -662,7 +716,8 @@ export class ResetPasswordUseCase {
       if (!otp || otp.isVerified) return Result.fail(new OtpInvalidError());
       if (otp.isExpired()) return Result.fail(new OtpExpiredError());
 
-      const maxAttempts = this.configService.get<number>('app.otp.maxAttempts') ?? 5;
+      const maxAttempts =
+        this.configService.get<number>("app.otp.maxAttempts") ?? 5;
       if (otp.maxAttemptsReached(maxAttempts)) {
         return Result.fail(new OtpMaxAttemptsExceededError());
       }
@@ -682,7 +737,7 @@ export class ResetPasswordUseCase {
 
       // Update password
       const newHash = await this.hasher.hash(input.newPassword);
-      (user as unknown as { _passwordHash: string })['_passwordHash'] = newHash;
+      (user as unknown as { _passwordHash: string })["_passwordHash"] = newHash;
       user.unlock();
       await this.users.save(user);
 
@@ -691,13 +746,15 @@ export class ResetPasswordUseCase {
       await this.refreshTokens.revokeAllByUserId(user.id);
 
       await this.auditLog.log({
-        action: 'user.password_reset',
+        action: "user.password_reset",
         actorId: user.id,
-        subjectType: 'User',
+        subjectType: "User",
         subjectId: user.id,
       });
 
-      return Result.ok({ message: 'Password has been reset successfully. Please log in.' });
+      return Result.ok({
+        message: "Password has been reset successfully. Please log in.",
+      });
     } catch (error) {
       if (error instanceof AppError) return Result.fail(error);
       throw error;
@@ -717,11 +774,14 @@ export class GetCurrentUserUseCase {
   ) {}
 
   async execute(input: { userId: string }): Promise<
-    Result<{
-      user: User;
-      profile: Profile | null;
-      capabilities: UserCapability[];
-    }, AppError>
+    Result<
+      {
+        user: User;
+        profile: Profile | null;
+        capabilities: UserCapability[];
+      },
+      AppError
+    >
   > {
     const user = await this.users.findById(input.userId);
     if (!user) return Result.fail(new UserNotFoundError());
@@ -753,7 +813,7 @@ export class CompleteProfileUseCase {
 
     const user = await this.users.findById(input.userId);
 
-    profile.update(input.fields as Parameters<Profile['update']>[0]);
+    profile.update(input.fields as Parameters<Profile["update"]>[0]);
     profile.refreshCompletion(
       user?.isPhoneVerified ?? false,
       user?.email !== null,
@@ -796,11 +856,14 @@ export class RequestCapabilityUseCase {
     await this.capabilities.save(cap);
 
     await this.auditLog.log({
-      action: 'capability.requested',
+      action: "capability.requested",
       actorId: input.userId,
-      subjectType: 'UserCapability',
+      subjectType: "UserCapability",
       subjectId: cap.id,
-      metadata: { type: input.type, autoApproved: cap.status === CapabilityStatus.ACTIVE },
+      metadata: {
+        type: input.type,
+        autoApproved: cap.status === CapabilityStatus.ACTIVE,
+      },
     });
 
     return Result.ok(cap);
@@ -819,7 +882,7 @@ export class DecideCapabilityUseCase {
 
   async execute(input: {
     capabilityId: string;
-    decision: 'approve' | 'reject' | 'suspend' | 'reactivate' | 'revoke';
+    decision: "approve" | "reject" | "suspend" | "reactivate" | "revoke";
     adminId: string;
     reason?: string;
   }): Promise<Result<UserCapability, AppError>> {
@@ -827,18 +890,28 @@ export class DecideCapabilityUseCase {
     if (!cap) return Result.fail(new CapabilityNotFoundError());
 
     switch (input.decision) {
-      case 'approve': cap.approve(); break;
-      case 'reject': cap.reject(input.reason ?? 'Rejected by admin'); break;
-      case 'suspend': cap.suspend(input.reason ?? 'Suspended by admin'); break;
-      case 'reactivate': cap.reactivate(); break;
-      case 'revoke': cap.revoke(input.reason ?? 'Revoked by admin'); break;
+      case "approve":
+        cap.approve();
+        break;
+      case "reject":
+        cap.reject(input.reason ?? "Rejected by admin");
+        break;
+      case "suspend":
+        cap.suspend(input.reason ?? "Suspended by admin");
+        break;
+      case "reactivate":
+        cap.reactivate();
+        break;
+      case "revoke":
+        cap.revoke(input.reason ?? "Revoked by admin");
+        break;
     }
     await this.capabilities.save(cap);
 
     await this.auditLog.log({
       action: `capability.${input.decision}d`,
       actorId: input.adminId,
-      subjectType: 'UserCapability',
+      subjectType: "UserCapability",
       subjectId: cap.id,
       metadata: { reason: input.reason },
     });
@@ -855,13 +928,16 @@ export class ListSessionsUseCase {
     @Inject(SESSION_REPOSITORY) private readonly sessions: ISessionRepository,
   ) {}
 
-  async execute(input: { userId: string; currentSessionId: string }): Promise<
-    Result<Array<Session & { isCurrent: boolean }>, AppError>
-  > {
+  async execute(input: {
+    userId: string;
+    currentSessionId: string;
+  }): Promise<Result<Array<Session & { isCurrent: boolean }>, AppError>> {
     const sessions = await this.sessions.findAllActiveByUserId(input.userId);
-    const result = sessions.map((s) => Object.assign(s, {
-      isCurrent: s.id === input.currentSessionId,
-    }));
+    const result = sessions.map((s) =>
+      Object.assign(s, {
+        isCurrent: s.id === input.currentSessionId,
+      }),
+    );
     return Result.ok(result);
   }
 }
@@ -890,9 +966,9 @@ export class RevokeSessionUseCase {
     await this.refreshTokens.revokeAllBySessionId(input.sessionId);
 
     await this.auditLog.log({
-      action: 'session.revoked',
+      action: "session.revoked",
       actorId: input.userId,
-      subjectType: 'Session',
+      subjectType: "Session",
       subjectId: input.sessionId,
     });
 

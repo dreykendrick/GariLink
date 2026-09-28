@@ -15,7 +15,8 @@ class UserProfileModel {
       county: json['county'] as String?,
       city: json['city'] as String?,
       country: json['country'] as String? ?? 'Kenya',
-      completionPercentage: (json['completionPercentage'] as num?)?.toInt() ?? 0,
+      completionPercentage:
+          (json['completionPercentage'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -115,20 +116,26 @@ class UserModel {
 
   static User fromJson(Map<String, dynamic> json) {
     final rawRoles = json['roles'] as List<dynamic>?;
-    final rolesList = rawRoles?.map((e) {
-      if (e is String) return mapRole(e);
-      if (e is Map<String, dynamic> && e['role'] is String) return mapRole(e['role'] as String);
-      return UserRole.customer;
-    }).toList() ?? [UserRole.customer];
+    final rolesList =
+        rawRoles?.map((e) {
+          if (e is String) return mapRole(e);
+          if (e is Map<String, dynamic> && e['role'] is String) {
+            return mapRole(e['role'] as String);
+          }
+          return UserRole.customer;
+        }).toList() ??
+        [UserRole.customer];
 
-    final capabilitiesList = (json['capabilities'] as List<dynamic>?)?.map((e) {
-      final map = e as Map<String, dynamic>;
-      return UserCapability(
-        id: map['id'] as String,
-        type: mapCapabilityType(map['type'] as String),
-        status: mapCapabilityStatus(map['status'] as String),
-      );
-    }).toList() ?? [];
+    final capabilitiesList =
+        (json['capabilities'] as List<dynamic>?)?.map((e) {
+          final map = e as Map<String, dynamic>;
+          return UserCapability(
+            id: map['id'] as String,
+            type: mapCapabilityType(map['type'] as String),
+            status: mapCapabilityStatus(map['status'] as String),
+          );
+        }).toList() ??
+        [];
 
     final profileData = json['profile'];
 
@@ -154,12 +161,22 @@ class UserModel {
       'roles': user.roles.map((e) => roleToString(e)).toList(),
       'isPhoneVerified': user.isPhoneVerified,
       'isEmailVerified': user.isEmailVerified,
-      'profile': user.profile != null ? UserProfileModel.toJson(user.profile!) : null,
-      'capabilities': user.capabilities.map((e) => {
-        'id': e.id,
-        'type': e.type.toString().split('.').last.toUpperCase(), // basic serialisation
-        'status': e.status.toString().split('.').last.toUpperCase(),
-      }).toList(),
+      'profile': user.profile != null
+          ? UserProfileModel.toJson(user.profile!)
+          : null,
+      'capabilities': user.capabilities
+          .map(
+            (e) => {
+              'id': e.id,
+              'type': e.type
+                  .toString()
+                  .split('.')
+                  .last
+                  .toUpperCase(), // basic serialisation
+              'status': e.status.toString().split('.').last.toUpperCase(),
+            },
+          )
+          .toList(),
     };
   }
 }

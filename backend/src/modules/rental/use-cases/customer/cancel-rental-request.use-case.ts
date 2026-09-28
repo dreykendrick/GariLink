@@ -1,8 +1,12 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { IRentalRequestRepository } from '../../domain/repositories/rental-request.repository.interface';
-import { Result } from '../../../../shared/domain/result';
-import { AppError } from '../../../../core/errors/app-error';
-import { RentalNotFoundError, RentalAccessDeniedError, InvalidRentalTransitionError } from '../../domain/errors/rental.errors';
+import { Injectable, Inject } from "@nestjs/common";
+import { IRentalRequestRepository } from "../../domain/repositories/rental-request.repository.interface";
+import { Result } from "../../../../shared/domain/result";
+import { AppError } from "../../../../core/errors/app-error";
+import {
+  RentalNotFoundError,
+  RentalAccessDeniedError,
+  InvalidRentalTransitionError,
+} from "../../domain/errors/rental.errors";
 
 export interface CancelRentalRequestCommand {
   customerId: string;
@@ -12,13 +16,16 @@ export interface CancelRentalRequestCommand {
 @Injectable()
 export class CancelRentalRequestUseCase {
   constructor(
-    @Inject('IRentalRequestRepository') private repo: IRentalRequestRepository,
+    @Inject("IRentalRequestRepository") private repo: IRentalRequestRepository,
   ) {}
 
-  async execute(cmd: CancelRentalRequestCommand): Promise<Result<void, AppError>> {
+  async execute(
+    cmd: CancelRentalRequestCommand,
+  ): Promise<Result<void, AppError>> {
     const rental = await this.repo.findById(cmd.rentalId);
     if (!rental) return Result.fail(new RentalNotFoundError());
-    if (rental.customerId !== cmd.customerId) return Result.fail(new RentalAccessDeniedError());
+    if (rental.customerId !== cmd.customerId)
+      return Result.fail(new RentalAccessDeniedError());
 
     try {
       rental.cancel();

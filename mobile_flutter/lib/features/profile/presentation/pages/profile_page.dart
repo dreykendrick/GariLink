@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../authentication/domain/entities/user.dart';
+import 'edit_profile_sheet.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:garilink_mobile/core/theme/colors.dart';
 import 'package:garilink_mobile/core/theme/spacing.dart';
 import 'package:garilink_mobile/core/theme/radius.dart';
+import 'package:garilink_mobile/core/theme/shadows.dart';
 import 'package:garilink_mobile/core/theme/typography.dart';
 import 'package:garilink_mobile/features/authentication/presentation/providers/auth_provider.dart';
-
-
+import 'package:garilink_mobile/shared/widgets/empty_state.dart';
 
 class ProfilePage extends ConsumerWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,100 +24,45 @@ class ProfilePage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: GariLinkColors.background,
       body: SafeArea(
-        child: isAuthenticated ? _buildAuthenticatedProfile(context) : _buildUnauthenticatedProfile(context),
+        child: isAuthenticated
+            ? _buildAuthenticatedProfile(context, ref)
+            : _buildUnauthenticatedProfile(context),
       ),
     );
   }
 
   Widget _buildUnauthenticatedProfile(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(GariLinkSpacing.lg),
-        child: Container(
-          padding: const EdgeInsets.all(GariLinkSpacing.xxl),
-          decoration: BoxDecoration(
-            color: GariLinkColors.surface,
-            borderRadius: BorderRadius.circular(GariLinkRadius.card),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.account_circle_outlined,
-                size: 64,
-                color: GariLinkColors.primary,
-              ),
-              const SizedBox(height: GariLinkSpacing.lg),
-              Text(
-                'Welcome to GariLink',
-                style: GoogleFonts.inter(
-                  color: GariLinkColors.primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: GariLinkSpacing.sm),
-              Text(
-                'Sign in to manage your trips, vehicles, and account settings.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  color: GariLinkColors.textMuted,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: GariLinkSpacing.xl),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Navigate to sign in
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GariLinkColors.accent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(GariLinkRadius.button),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Sign In',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return EmptyState(
+      icon: Icons.account_circle_outlined,
+      title: 'Your GariLink profile',
+      description: 'Sign in to manage your rentals, vehicles, and account.',
+      actionLabel: 'Sign in',
+      onAction: () => context.push('/login'),
     );
   }
 
-  Widget _buildAuthenticatedProfile(BuildContext context) {
+  Widget _buildAuthenticatedProfile(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
       child: Column(
         children: [
-          _buildHeader(),
+          _buildHeader(ref.watch(authStateProvider).user),
           Padding(
             padding: const EdgeInsets.all(GariLinkSpacing.lg),
             child: Column(
               children: [
-                _buildMenuSection(),
+                _buildMenuSection(context, ref),
                 const SizedBox(height: GariLinkSpacing.xl),
-                const Divider(color: Color(0xFFE2E8F0), thickness: 1),
+                const Divider(),
                 const SizedBox(height: GariLinkSpacing.xl),
                 _buildCtaBanner(),
+                const SizedBox(height: GariLinkSpacing.lg),
+                OutlinedButton.icon(
+                  onPressed: ref.watch(authStateProvider).isLoading
+                      ? null
+                      : () => ref.read(authStateProvider.notifier).logout(),
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Sign out'),
+                ),
                 const SizedBox(height: GariLinkSpacing.xxl),
                 Text(
                   'GariLink v1.0.0',
@@ -132,7 +80,15 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(User? user) {
+    final name = user?.profile?.fullName ?? 'GariLink member';
+    final initials = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.characters.first.toUpperCase())
+        .join();
     return Container(
       padding: const EdgeInsets.symmetric(vertical: GariLinkSpacing.xxl),
       width: double.infinity,
@@ -147,7 +103,7 @@ class ProfilePage extends ConsumerWidget {
             ),
             alignment: Alignment.center,
             child: Text(
-              'DM',
+              initials,
               style: GoogleFonts.inter(
                 color: Colors.white,
                 fontSize: 24,
@@ -156,67 +112,72 @@ class ProfilePage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: GariLinkSpacing.md),
-          Text(
-            'Dustan Mrema',
-            style: GoogleFonts.inter(
-              color: GariLinkColors.primary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(name, style: GariLinkTypography.sectionTitle),
           const SizedBox(height: GariLinkSpacing.xs),
           Text(
-            'Makoa Rentals',
+            user?.phoneNumber ?? '',
             style: GoogleFonts.inter(
               color: GariLinkColors.accent,
               fontSize: 13,
             ),
           ),
           const SizedBox(height: GariLinkSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.check_circle,
-                color: GariLinkColors.success,
-                size: 16,
-              ),
-              const SizedBox(width: GariLinkSpacing.xs),
-              Text(
-                'Verified User',
-                style: GoogleFonts.inter(
+          if (user?.isPhoneVerified == true)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.check_circle,
                   color: GariLinkColors.success,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  size: 16,
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: GariLinkSpacing.xs),
+                Text(
+                  'Phone verified',
+                  style: GoogleFonts.inter(
+                    color: GariLinkColors.success,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildMenuSection() {
+  Widget _buildMenuSection(BuildContext context, WidgetRef ref) {
     return Container(
       decoration: BoxDecoration(
         color: GariLinkColors.surface,
         borderRadius: BorderRadius.circular(GariLinkRadius.card),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [GariLinkShadows.card],
       ),
       child: Column(
         children: [
-          _buildMenuItem(Icons.person_outline, 'Personal Information'),
+          _buildMenuItem(
+            Icons.person_outline,
+            'Personal Information',
+            onTap: () async {
+              final user = ref.read(authStateProvider).user;
+              if (user == null) return;
+              final saved = await showEditProfileSheet(context, user);
+              if (saved == true && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile updated')),
+                );
+              }
+            },
+          ),
           _buildDivider(),
           _buildMenuItem(Icons.credit_card_outlined, 'Payment Methods'),
           _buildDivider(),
-          _buildMenuItem(Icons.favorite_border, 'Saved Vehicles'),
+          _buildMenuItem(
+            Icons.favorite_border,
+            'Saved Vehicles',
+            onTap: () => context.push('/saved-vehicles'),
+          ),
           _buildDivider(),
           _buildMenuItem(Icons.notifications_outlined, 'Notifications'),
           _buildDivider(),
@@ -238,11 +199,16 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, {bool isLast = false}) {
+  Widget _buildMenuItem(
+    IconData icon,
+    String title, {
+    bool isLast = false,
+    VoidCallback? onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: isLast
             ? const BorderRadius.only(
                 bottomLeft: Radius.circular(GariLinkRadius.card),
@@ -263,11 +229,7 @@ class ProfilePage extends ConsumerWidget {
                   color: GariLinkColors.background,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  icon,
-                  color: GariLinkColors.primary,
-                  size: 24,
-                ),
+                child: Icon(icon, color: GariLinkColors.primary, size: 24),
               ),
               const SizedBox(width: GariLinkSpacing.md),
               Expanded(
@@ -304,9 +266,9 @@ class ProfilePage extends ConsumerWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: () {},
-          borderRadius: BorderRadius.circular(GariLinkRadius.card),
+        child: Semantics(
+          label:
+              'Vehicle owner onboarding. Use the add button in the main navigation.',
           child: Padding(
             padding: const EdgeInsets.all(GariLinkSpacing.lg),
             child: Row(
@@ -314,7 +276,7 @@ class ProfilePage extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(GariLinkSpacing.sm),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -338,26 +300,19 @@ class ProfilePage extends ConsumerWidget {
                       ),
                       const SizedBox(height: GariLinkSpacing.xs),
                       Text(
-                        'List your car and start earning',
+                        'Use the + button below to create your first private draft',
                         style: GoogleFonts.inter(
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 13,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(GariLinkSpacing.xs),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward,
-                    color: Color(0xFF1D4ED8),
-                    size: 20,
-                  ),
+                const Icon(
+                  Icons.add_circle_outline,
+                  color: Colors.white,
+                  size: 28,
                 ),
               ],
             ),

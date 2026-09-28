@@ -1,5 +1,5 @@
 name: garilink_mobile
-description: "A new Flutter project."
+description: "GariLink vehicle marketplace for Tanzania."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -43,6 +43,11 @@ dependencies:
   intl: ^0.19.0
   shimmer: ^3.0.0
   flutter_svg: ^2.0.10+1
+  image_picker: ^1.2.3
+  flutter_image_compress: ^2.5.1
+  cached_network_image: ^3.4.1
+  photo_view: ^0.15.0
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:
@@ -66,10 +71,7 @@ flutter:
 
   assets:
     - assets/images/logo.jpg
-    - assets/images/vehicles/
-    - assets/images/profile/
-    - assets/images/onboarding/
-    - assets/images/icons/
+    - assets/images/home/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

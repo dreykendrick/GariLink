@@ -1,4 +1,4 @@
-import { RentalRequest } from '../entities/rental-request.entity';
+import { RentalRequest } from "../entities/rental-request.entity";
 
 export interface IRentalRequestRepository {
   findById(id: string): Promise<RentalRequest | null>;

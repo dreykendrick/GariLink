@@ -8,5 +8,6 @@ export 'radius.dart';
 export 'typography.dart';
 export 'shadows.dart';
 export 'animations.dart';
+export 'dimensions.dart';
 export 'icons.dart';
 export 'app_theme.dart';

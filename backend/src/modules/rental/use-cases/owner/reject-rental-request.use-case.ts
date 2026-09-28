@@ -1,12 +1,18 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { IRentalRequestRepository } from '../../domain/repositories/rental-request.repository.interface';
-import { PrismaService } from '../../../../shared/infrastructure/prisma.service';
-import { Result } from '../../../../shared/domain/result';
-import { AppError } from '../../../../core/errors/app-error';
-import { RentalNotFoundError, RentalAccessDeniedError, InvalidRentalTransitionError } from '../../domain/errors/rental.errors';
+import { Injectable, Inject } from "@nestjs/common";
+import { IRentalRequestRepository } from "../../domain/repositories/rental-request.repository.interface";
+import { PrismaService } from "../../../../shared/infrastructure/prisma.service";
+import { Result } from "../../../../shared/domain/result";
+import { AppError } from "../../../../core/errors/app-error";
+import {
+  RentalNotFoundError,
+  RentalAccessDeniedError,
+  InvalidRentalTransitionError,
+} from "../../domain/errors/rental.errors";
+import { canManageWorkspaceRentals } from "./owner-rental-access";
 
 export interface RejectRentalRequestCommand {
   userId: string;
+  workspaceId: string;
   rentalId: string;
   reason?: string;
 }
@@ -14,18 +20,26 @@ export interface RejectRentalRequestCommand {
 @Injectable()
 export class RejectRentalRequestUseCase {
   constructor(
-    @Inject('IRentalRequestRepository') private repo: IRentalRequestRepository,
+    @Inject("IRentalRequestRepository") private repo: IRentalRequestRepository,
     private prisma: PrismaService,
   ) {}
 
-  async execute(cmd: RejectRentalRequestCommand): Promise<Result<void, AppError>> {
+  async execute(
+    cmd: RejectRentalRequestCommand,
+  ): Promise<Result<void, AppError>> {
     const rental = await this.repo.findById(cmd.rentalId);
     if (!rental) return Result.fail(new RentalNotFoundError());
 
-    const member = await this.prisma.workspaceMember.findFirst({
-      where: { workspaceId: rental.workspaceId, userId: cmd.userId }
-    });
-    if (!member) return Result.fail(new RentalAccessDeniedError());
+    if (
+      rental.workspaceId !== cmd.workspaceId ||
+      !(await canManageWorkspaceRentals(
+        this.prisma,
+        rental.workspaceId,
+        cmd.userId,
+      ))
+    ) {
+      return Result.fail(new RentalAccessDeniedError());
+    }
 
     try {
       rental.reject(cmd.reason);

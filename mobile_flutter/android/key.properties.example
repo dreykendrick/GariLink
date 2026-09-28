@@ -1,0 +1,6 @@
+# Copy this file to key.properties. Never commit key.properties or the keystore.
+# Paths are relative to the android directory unless an absolute local path is used.
+storeFile=../private/garilink-upload.jks
+storePassword=REPLACE_LOCALLY
+keyAlias=garilink-upload
+keyPassword=REPLACE_LOCALLY

@@ -28,18 +28,20 @@ class VehicleRepositoryImpl implements VehicleRepository {
 
   @override
   Future<Map<String, dynamic>> getVehicle(String id) async {
-    final response = await _apiClient.get<Map<String, dynamic>>('/vehicles/$id');
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      '/vehicles/$id',
+    );
     return response;
   }
 
   @override
-  Future<List<Map<String, dynamic>>> listWorkspaceVehicles(String workspaceId) async {
-    try {
-      final response = await _apiClient.get<Map<String, dynamic>>('/vehicles/workspace/$workspaceId');
-      final dataList = response['data'] as List<dynamic>? ?? [];
-      return dataList.map((e) => e as Map<String, dynamic>).toList();
-    } catch (_) {
-      return [];
-    }
+  Future<List<Map<String, dynamic>>> listWorkspaceVehicles(
+    String workspaceId,
+  ) async {
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      '/vehicles/workspace/$workspaceId',
+    );
+    final dataList = response['data'] as List<dynamic>? ?? [];
+    return dataList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 }
