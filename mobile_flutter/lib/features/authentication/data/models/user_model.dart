@@ -141,7 +141,7 @@ class UserModel {
 
     return User(
       id: json['id'] as String,
-      phoneNumber: json['phoneNumber'] as String,
+      phoneNumber: json['phoneNumber'] as String? ?? '',
       email: json['email'] as String?,
       roles: rolesList,
       isPhoneVerified: json['isPhoneVerified'] as bool? ?? false,

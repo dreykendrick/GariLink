@@ -134,6 +134,47 @@ void main() {
     expect(find.text('Approx. cargo weight (kg)'), findsNothing);
   });
 
+  testWidgets('Home purpose changes clear incompatible requirement values', (
+    tester,
+  ) async {
+    final key = GlobalKey<TransportNeedFormState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: TransportNeedForm(
+              key: key,
+              variant: TransportNeedFormVariant.home,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('home-purpose-Personal trip')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('requirements-passengers')),
+      '4',
+    );
+    expect(key.currentState!.need!.passengerCount, 4);
+
+    await tester.tap(find.byKey(const Key('home-purpose-Deliver goods')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Small cargo'));
+    await tester.pumpAndSettle();
+    expect(key.currentState!.need!.passengerCount, isNull);
+    await tester.enterText(
+      find.byKey(const Key('requirements-cargo-weight')),
+      '25',
+    );
+    expect(key.currentState!.need!.cargo!.estimatedWeightKg, 25);
+
+    await tester.tap(find.byKey(const Key('home-purpose-Group travel')));
+    await tester.pumpAndSettle();
+    expect(key.currentState!.need!.cargo, isNull);
+  });
+
   testWidgets('matched transport need is retained when booking starts', (
     tester,
   ) async {

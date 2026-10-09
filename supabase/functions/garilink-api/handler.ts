@@ -2,6 +2,7 @@ import {createGoogleRoutesProvider, publicRouteResult, RouteService} from "./rou
 import type {RouteProvider} from "./route_service.ts";
 
 interface ApiConfig {
+  authRedirectUrl?: string;
   supabaseUrl: string;
   anonKey: string;
   origins: string[];
@@ -10,10 +11,12 @@ interface ApiConfig {
 }
 
 class HttpError extends Error {
+  code?: string;
   status: number;
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -44,6 +47,13 @@ function phoneField(body: Record<string, unknown>): string {
   if (!/^\+255[67]\d{8}$/.test(phone))
     throw new HttpError(400, "Enter a valid Tanzanian mobile number.");
   return phone;
+}
+
+function emailField(body: Record<string, unknown>): string {
+  const email = textField(body, "email", 254).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw new HttpError(400, "Enter a valid email address.");
+  return email;
 }
 
 function passwordField(
@@ -93,6 +103,8 @@ async function jsonBody(request: Request): Promise<Record<string, unknown>> {
 }
 
 export function createApi(config: ApiConfig, fetcher: typeof fetch = fetch, routeProvider?: RouteProvider) {
+  if (config.authRedirectUrl && config.authRedirectUrl !== "ke.co.garilink.garilink_mobile://auth/auth/email-callback")
+    throw new Error("Auth callback must use the approved application redirect");
   const upstream = new URL(config.supabaseUrl);
   if (
     upstream.protocol !== "https:" &&
@@ -153,8 +165,14 @@ export function createApi(config: ApiConfig, fetcher: typeof fetch = fetch, rout
           "Service unavailable. Please try again shortly.",
         );
       // Only allowlisted codes affect user messages. Never forward provider bodies.
+      if (detail?.error_code === "user_already_exists")
+        throw new HttpError(400, "Check your email for account instructions.", "user_already_exists");
       if (detail?.error_code === "phone_not_confirmed")
         throw new HttpError(403, "Verify your phone number before signing in.");
+      if (detail?.error_code === "email_not_confirmed")
+        throw new HttpError(403, "Confirm your email before signing in.");
+      if (detail?.error_code === "otp_expired")
+        throw new HttpError(403, "This verification link or code has expired. Request a new one.");
       if (
         [
           "refresh_token_not_found",
@@ -215,6 +233,8 @@ export function createApi(config: ApiConfig, fetcher: typeof fetch = fetch, rout
         "Sign-in could not be completed. Please try again.",
       );
     }
+    if (!session.user.email_confirmed_at && !session.user.phone_confirmed_at)
+      throw new HttpError(403, "Confirm your email before signing in.");
     let user;
     try {
       user = await call(
@@ -229,7 +249,7 @@ export function createApi(config: ApiConfig, fetcher: typeof fetch = fetch, rout
       // Safe fallback grants no owner/admin capability; /me must refresh it later.
       user = {
         id: session.user.id,
-        phoneNumber: "+" + String(session.user.phone ?? "").replace(/^\+/, ""),
+        phoneNumber: session.user.phone ? "+" + String(session.user.phone).replace(/^\+/, "") : "",
         email: session.user.email || null,
         isPhoneVerified: !!session.user.phone_confirmed_at,
         isEmailVerified: !!session.user.email_confirmed_at,
@@ -328,6 +348,21 @@ export function createApi(config: ApiConfig, fetcher: typeof fetch = fetch, rout
         });
       if (route === "POST /auth/register") {
         const body = await jsonBody(request);
+        if (body.email != null) {
+          const email = emailField(body);
+          const password = passwordField(body);
+          if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password))
+            throw new HttpError(400, "Use uppercase, lowercase and a number in your password.");
+          const redirect = config.authRedirectUrl;
+          if (!redirect) throw new HttpError(503, "Email confirmation is not configured yet.");
+          try {
+            await call(`/auth/v1/signup?redirect_to=${encodeURIComponent(redirect)}`, "POST", { email, password });
+          } catch (error) {
+            if (!(error instanceof HttpError) || error.code !== "user_already_exists") throw error;
+            // Auth deliberately obscures existing confirmed accounts.
+          }
+          return ok({ requiresVerification: true, verificationChannel: "EMAIL", email }, 202);
+        }
         const phone = phoneField(body);
         await call("/auth/v1/signup", "POST", {
           phone,
@@ -338,6 +373,36 @@ export function createApi(config: ApiConfig, fetcher: typeof fetch = fetch, rout
           },
         });
         return ok({ requiresVerification: true, phoneNumber: phone }, 202);
+      }
+      if (route === "POST /auth/email/resend" || route === "POST /auth/email/recover") {
+        const body = await jsonBody(request);
+        const email = emailField(body);
+        if (!config.authRedirectUrl) throw new HttpError(503, "Email verification is not configured yet.");
+        const recovery = route.endsWith("/recover");
+        try {
+          await call(`/auth/v1/${recovery ? "recover" : "resend"}?redirect_to=${encodeURIComponent(config.authRedirectUrl)}`, "POST",
+            recovery ? { email } : { email, type: "signup" });
+        } catch (error) {
+          if (!(error instanceof HttpError) || ![400, 404].includes(error.status)) throw error;
+        }
+        return ok({ message: "If this account can receive an email, instructions have been sent." });
+      }
+      if (route === "POST /auth/email/confirm") {
+        const body = await jsonBody(request);
+        const token = textField(body, "tokenHash", 512);
+        const session = await call("/auth/v1/verify", "POST", { token_hash: token, type: "signup" });
+        return ok(await sessionResult(session));
+      }
+      if (route === "POST /auth/email/reset") {
+        const body = await jsonBody(request);
+        const password = passwordField(body, "newPassword");
+        if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password))
+          throw new HttpError(400, "Use uppercase, lowercase and a number in your password.");
+        const session = await call("/auth/v1/verify", "POST", { token_hash: textField(body, "tokenHash", 512), type: "recovery" });
+        if (!session?.access_token) throw new HttpError(400, "Reset link expired. Request a new email.");
+        await call("/auth/v1/user", "PUT", { password }, session.access_token);
+        await call("/auth/v1/logout?scope=global", "POST", undefined, session.access_token);
+        return ok({ message: "Password updated. Sign in with your new password." });
       }
       if (route === "POST /auth/login") {
         const body = await jsonBody(request);

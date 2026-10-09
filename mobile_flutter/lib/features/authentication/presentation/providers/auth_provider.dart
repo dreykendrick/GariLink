@@ -11,6 +11,14 @@ final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(authRepository, storageService)..hydrate();
 });
 
+enum AuthAccessState {
+  signedOut,
+  emailConfirmationPending,
+  legacyPhonePending,
+  emailConfirmed,
+  legacyAuthenticated,
+}
+
 class AuthState {
   final User? user;
   final bool isAuthenticated;
@@ -18,6 +26,19 @@ class AuthState {
   final bool isHydrated;
   final String? errorMessage;
   final String? pendingPhone;
+  final String? pendingEmail;
+  AuthAccessState get accessState {
+    if (isAuthenticated) {
+      return user?.isEmailVerified == true
+          ? AuthAccessState.emailConfirmed
+          : AuthAccessState.legacyAuthenticated;
+    }
+    if (pendingEmail != null) return AuthAccessState.emailConfirmationPending;
+    if (pendingPhone != null) return AuthAccessState.legacyPhonePending;
+    return AuthAccessState.signedOut;
+  }
+
+  bool get isContactVerified => user?.isPhoneVerified == true;
 
   const AuthState({
     this.user,
@@ -26,6 +47,7 @@ class AuthState {
     this.isHydrated = false,
     this.errorMessage,
     this.pendingPhone,
+    this.pendingEmail,
   });
 
   AuthState copyWith({
@@ -35,6 +57,7 @@ class AuthState {
     bool? isHydrated,
     String? errorMessage,
     String? pendingPhone,
+    String? pendingEmail,
     bool clearError = false,
     bool clearUser = false,
     bool clearPendingPhone = false,
@@ -48,6 +71,7 @@ class AuthState {
       pendingPhone: clearPendingPhone
           ? null
           : (pendingPhone ?? this.pendingPhone),
+      pendingEmail: pendingEmail ?? this.pendingEmail,
     );
   }
 }
@@ -88,7 +112,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (token == null || token.isEmpty) {
         final pending = await _storageService.getPendingVerificationPhone();
         if (!_current(operation)) return;
-        state = AuthState(isHydrated: true, pendingPhone: pending);
+        final email = await _storageService.getPendingEmail();
+        if (!_current(operation)) return;
+        state = AuthState(
+          isHydrated: true,
+          pendingPhone: pending,
+          pendingEmail: email,
+        );
         return;
       }
       final user = await _authRepository.getMe();
@@ -112,6 +142,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _authenticate(Future<AuthResponse> Function() request) async {
     if (state.isLoading) return;
     final operation = ++_operation;
+    final pendingEmail = state.pendingEmail;
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final response = await request();
@@ -120,7 +151,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (_current(operation)) {
         if (error is UnauthorizedException) await _storageService.clearTokens();
         if (mounted) {
-          state = AuthState(isHydrated: true, errorMessage: _message(error));
+          state = AuthState(
+            isHydrated: true,
+            pendingEmail: pendingEmail,
+            errorMessage: _message(error),
+          );
         }
       }
       throw error is AppException ? error : AppException(_message(error));
@@ -129,6 +164,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> login(String identifier, String password) =>
       _authenticate(() => _authRepository.login(identifier, password));
+
+  Future<void> registerEmail(String email, String password) async {
+    if (state.isLoading) return;
+    final operation = ++_operation;
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final result = await _authRepository.registerEmail(email, password);
+      if (!_current(operation)) return;
+      final pending = result.pendingEmail;
+      if (pending == null) {
+        throw const ServerException('Registration could not be completed.');
+      }
+      await _storageService.setPendingEmail(pending);
+      if (_current(operation)) {
+        state = AuthState(isHydrated: true, pendingEmail: pending);
+      }
+    } catch (error) {
+      if (_current(operation)) {
+        state = state.copyWith(isLoading: false, errorMessage: _message(error));
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> confirmEmail(String tokenHash) =>
+      _authenticate(() => _authRepository.confirmEmail(tokenHash));
+  Future<void> resendEmail() =>
+      _action(() => _authRepository.resendEmail(state.pendingEmail ?? ''));
+  Future<void> recoverEmail(String email) =>
+      _action(() => _authRepository.recoverEmail(email));
+  Future<void> resetEmail(String tokenHash, String password) =>
+      _action(() => _authRepository.resetEmail(tokenHash, password));
 
   Future<void> _acceptSession(AuthResponse response, int operation) async {
     if (!_current(operation)) return;
@@ -265,7 +332,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _action(Future<void> Function() action) async {
-    if (state.isLoading) return;
+    if (state.isLoading) {
+      throw const AppException('Please wait for the current action to finish.');
+    }
     final operation = ++_operation;
     state = state.copyWith(isLoading: true, clearError: true);
     try {

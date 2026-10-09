@@ -11,9 +11,10 @@ $marketplaceAssertions = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 
 $rentalAssertions = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'rental-assertions.sql')
 $pricingAssertions = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'pricing-assertions.sql')
 $mediaAssertions = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'media-assertions.sql')
+$emailAssertions = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'email-auth-assertions.sql')
 # Supabase migrations have their own transaction. Combine them into one rollback
 # transaction for this stand-in SQL test, including temporary database roles.
 $migration = $migration -replace '(?im)^begin;\s*$', '' -replace '(?im)^commit;\s*$', ''
-$testSql = "BEGIN;`n$fixture`n$migration`n$assertions`n$workspaceAssertions`n$marketplaceAssertions`n$rentalAssertions`n$pricingAssertions`n$mediaAssertions`nROLLBACK;"
-$testSql | & $testPsql -h 127.0.0.1 -p 5433 -U garilink -d garilink_dev -X -v ON_ERROR_STOP=1 -q
+$testSql = "BEGIN;`n$fixture`n$migration`n$assertions`n$workspaceAssertions`n$marketplaceAssertions`n$rentalAssertions`n$pricingAssertions`n$mediaAssertions`n$emailAssertions`nROLLBACK;"
+$testSql | & $testPsql -w -h 127.0.0.1 -p 5433 -U garilink -d garilink_dev -X -v ON_ERROR_STOP=1 -q
 if ($LASTEXITCODE -ne 0) { throw 'Supabase identity SQL checks failed; transaction was rolled back.' }

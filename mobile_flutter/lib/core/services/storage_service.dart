@@ -17,6 +17,24 @@ class StorageService {
   static const String _refreshTokenKey = 'gl_refresh_token';
   static const String _userIdKey = 'gl_user_id';
   static const String _pendingPhoneKey = 'gl_pending_verification_phone';
+  static const String _pendingEmailKey = 'gl_pending_verification_email';
+  Future<String?> getPendingEmail() async {
+    await _pendingWrite;
+    return _secureStorage.read(key: _pendingEmailKey);
+  }
+
+  Future<void> setPendingEmail(String email) {
+    _sessionRevision++;
+    return _serialize(() async {
+      await Future.wait([
+        _secureStorage.delete(key: _accessTokenKey),
+        _secureStorage.delete(key: _refreshTokenKey),
+        _secureStorage.delete(key: _userIdKey),
+        _secureStorage.delete(key: _pendingPhoneKey),
+        _secureStorage.write(key: _pendingEmailKey, value: email),
+      ]);
+    });
+  }
 
   StorageService(this._secureStorage, this._sharedPrefs);
 
@@ -56,6 +74,7 @@ class StorageService {
       _secureStorage.write(key: _accessTokenKey, value: accessToken),
       _secureStorage.write(key: _refreshTokenKey, value: refreshToken),
       _secureStorage.delete(key: _pendingPhoneKey),
+      _secureStorage.delete(key: _pendingEmailKey),
     ]);
   }
 
@@ -84,6 +103,7 @@ class StorageService {
         _secureStorage.delete(key: _refreshTokenKey),
         _secureStorage.delete(key: _userIdKey),
         _secureStorage.delete(key: _pendingPhoneKey),
+        _secureStorage.delete(key: _pendingEmailKey),
       ]);
     });
   }
@@ -102,6 +122,7 @@ class StorageService {
         _secureStorage.delete(key: _refreshTokenKey),
         _secureStorage.delete(key: _userIdKey),
         _secureStorage.write(key: _pendingPhoneKey, value: phone),
+        _secureStorage.delete(key: _pendingEmailKey),
       ]);
     });
   }

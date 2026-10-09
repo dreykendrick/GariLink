@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/spacing.dart';
-import '../../../../core/validation/tanzanian_phone.dart';
 import '../../../../shared/widgets/auth_content.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
@@ -20,19 +19,13 @@ class RegisterPage extends ConsumerStatefulWidget {
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -42,18 +35,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     try {
       await ref
           .read(authStateProvider.notifier)
-          .register(
-            phoneNumber: _phoneController.text.trim(),
-            password: _passwordController.text,
-            firstName: _firstNameController.text.trim().isEmpty
-                ? null
-                : _firstNameController.text.trim(),
-            lastName: _lastNameController.text.trim().isEmpty
-                ? null
-                : _lastNameController.text.trim(),
+          .registerEmail(
+            _emailController.text.trim(),
+            _passwordController.text,
           );
       if (mounted) {
-        context.replace('/verify-phone');
+        context.replace('/confirm-email');
       }
     } catch (e) {
       if (mounted) {
@@ -100,29 +87,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       "Save vehicles, contact sellers and manage rentals in one place.",
                 ),
                 const SizedBox(height: GariLinkSpacing.xxl),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AppTextField(
-                      labelText: 'First name',
-                      hintText: 'John',
-                      controller: _firstNameController,
-                    ),
-                    const SizedBox(height: GariLinkSpacing.md),
-                    AppTextField(
-                      labelText: 'Last name',
-                      hintText: 'Doe',
-                      controller: _lastNameController,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: GariLinkSpacing.md),
                 AppTextField(
-                  labelText: 'Phone number *',
-                  hintText: '0712 345 678',
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  validator: validateTanzanianPhone,
+                  labelText: 'Email',
+                  hintText: 'you@example.com',
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) =>
+                      value != null &&
+                          RegExp(
+                            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                          ).hasMatch(value.trim())
+                      ? null
+                      : 'Enter a valid email address',
                 ),
                 const SizedBox(height: GariLinkSpacing.md),
                 AppTextField(
@@ -142,22 +118,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     );
                     if (!passRegex.hasMatch(val)) {
                       return 'Must include uppercase, lowercase, and a number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: GariLinkSpacing.md),
-                AppTextField(
-                  labelText: 'Confirm password *',
-                  hintText: 'Repeat password',
-                  controller: _confirmPasswordController,
-                  isPassword: true,
-                  validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'Please confirm your password';
-                    }
-                    if (val != _passwordController.text) {
-                      return 'Passwords do not match';
                     }
                     return null;
                   },

@@ -90,21 +90,47 @@ class TransportNeedFormState extends State<TransportNeedForm> {
     String label,
     TextEditingController controller, {
     bool passenger = false,
-  }) => TextFormField(
-    controller: controller,
-    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-    decoration: InputDecoration(labelText: label),
-    validator: (text) {
-      if (text == null || text.isEmpty) return null;
-      final value = num.tryParse(text);
-      if (value == null ||
-          !value.isFinite ||
-          value < (passenger ? 1 : 0) ||
-          (passenger && (value > 100 || value != value.round()))) {
-        return 'Enter a valid ${passenger ? 'passenger count (1–100)' : 'non-negative amount'}';
-      }
-      return null;
-    },
+    required Key fieldKey,
+  }) => _requirementsField(
+    child: TextFormField(
+      key: fieldKey,
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.next,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+      decoration: InputDecoration(labelText: label),
+      validator: (text) {
+        if (text == null || text.isEmpty) return null;
+        final value = num.tryParse(text);
+        if (value == null ||
+            !value.isFinite ||
+            value < (passenger ? 1 : 0) ||
+            (passenger && (value > 100 || value != value.round()))) {
+          return 'Enter a valid ${passenger ? 'passenger count (1–100)' : 'non-negative amount'}';
+        }
+        return null;
+      },
+    ),
+  );
+
+  Widget _requirementsField({required Widget child}) => Padding(
+    padding: const EdgeInsets.only(bottom: GariLinkSpacing.md),
+    child: child,
+  );
+
+  Widget _requirementToggle({
+    required Key key,
+    required String title,
+    required bool value,
+    required ValueChanged<bool>? onChanged,
+  }) => SwitchListTile.adaptive(
+    key: key,
+    contentPadding: const EdgeInsets.symmetric(horizontal: GariLinkSpacing.xs),
+    visualDensity: VisualDensity.compact,
+    title: Text(title, style: GariLinkTypography.bodyMedium),
+    value: value,
+    onChanged: onChanged,
   );
 
   Future<void> _selectHomePurpose(_HomePurpose option) async {
@@ -320,44 +346,75 @@ class TransportNeedFormState extends State<TransportNeedForm> {
             ),
           ),
         if (_purpose != null) ...[
-          Text('Your requirements', style: GariLinkTypography.titleMedium),
-          const SizedBox(height: GariLinkSpacing.sm),
-          if (_purpose!.needsCargo) ...[
-            number('Approx. cargo weight (kg)', _weight),
-            number('Approx. cargo volume (m³)', _volume),
-          ] else
-            number('Passengers (optional)', _passengers, passenger: true),
-          DropdownButtonFormField<DriverPreference>(
-            initialValue: _driver,
-            decoration: const InputDecoration(labelText: 'Driver preference'),
-            items: DriverPreference.values
-                .map(
-                  (p) => DropdownMenuItem(
-                    value: p,
-                    child: Text(
-                      const ['Any', 'With driver', 'Self-drive'][p.index],
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: (p) => setState(() => _driver = p!),
+          const SizedBox(height: GariLinkSpacing.xl),
+          Container(
+            key: const Key('requirements-section-heading'),
+            width: double.infinity,
+            padding: const EdgeInsets.only(top: GariLinkSpacing.lg),
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: GariLinkColors.borderLight),
+              ),
+            ),
+            child: Text(
+              'Your requirements',
+              style: GariLinkTypography.titleMedium,
+            ),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Return trip'),
+          const SizedBox(height: GariLinkSpacing.lg),
+          if (_purpose!.needsCargo) ...[
+            number(
+              'Approx. cargo weight (kg)',
+              _weight,
+              fieldKey: const Key('requirements-cargo-weight'),
+            ),
+            number(
+              'Approx. cargo volume (m³)',
+              _volume,
+              fieldKey: const Key('requirements-cargo-volume'),
+            ),
+          ] else
+            number(
+              'Passengers (optional)',
+              _passengers,
+              passenger: true,
+              fieldKey: const Key('requirements-passengers'),
+            ),
+          _requirementsField(
+            child: DropdownButtonFormField<DriverPreference>(
+              key: const Key('requirements-driver-preference'),
+              initialValue: _driver,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Driver preference'),
+              items: DriverPreference.values
+                  .map(
+                    (p) => DropdownMenuItem(
+                      value: p,
+                      child: Text(
+                        const ['Any', 'With driver', 'Self-drive'][p.index],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (p) => setState(() => _driver = p!),
+            ),
+          ),
+          _requirementToggle(
+            key: const Key('requirements-return-trip'),
+            title: 'Return trip',
             value: _return,
             onChanged: (v) => setState(() => _return = v),
           ),
           if (_purpose!.needsCargo)
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Covered cargo space required'),
+            _requirementToggle(
+              key: const Key('requirements-covered-cargo'),
+              title: 'Covered cargo space required',
               value: _covered,
               onChanged: (value) => setState(() => _covered = value),
             ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Long-distance trip'),
+          _requirementToggle(
+            key: const Key('requirements-long-distance'),
+            title: 'Long-distance trip',
             value: _purpose == TransportPurpose.longDistance || _longDistance,
             onChanged: _purpose == TransportPurpose.longDistance
                 ? null
@@ -422,22 +479,13 @@ const _homePurposes = <_HomePurpose>[
     purposes: [TransportPurpose.personalTrip],
   ),
   _HomePurpose(
-    title: 'Family or group travel',
-    displayTitle: 'Family or\ngroup travel',
+    title: 'Group travel',
+    displayTitle: 'Group travel',
     description: 'Travel together',
     icon: Icons.groups_2_outlined,
     accent: Color(0xFF7C3AED),
     tint: Color(0xFFF5F3FF),
     purposes: [TransportPurpose.familyOrGroup],
-  ),
-  _HomePurpose(
-    title: 'Airport transfer',
-    displayTitle: 'Airport\ntransfer',
-    description: 'Airport pickups & drop-offs',
-    icon: Icons.flight_takeoff_rounded,
-    accent: Color(0xFF0891B2),
-    tint: Color(0xFFECFEFF),
-    purposes: [TransportPurpose.airportTransfer],
   ),
   _HomePurpose(
     title: 'Deliver goods',
@@ -451,25 +499,16 @@ const _homePurposes = <_HomePurpose>[
   _HomePurpose(
     title: 'Moving goods',
     displayTitle: 'Moving\ngoods',
-    description: 'Vans for bigger items',
+    description: 'Vans for larger loads',
     icon: Icons.local_shipping_outlined,
     accent: Color(0xFF059669),
     tint: Color(0xFFECFDF5),
     purposes: [TransportPurpose.movingGoods],
   ),
   _HomePurpose(
-    title: 'Business transport',
-    displayTitle: 'Business\ntransport',
-    description: 'Staff & business travel',
-    icon: Icons.business_center_outlined,
-    accent: Color(0xFF475569),
-    tint: Color(0xFFF8FAFC),
-    purposes: [TransportPurpose.businessTransport],
-  ),
-  _HomePurpose(
-    title: 'Heavy cargo & long distance',
-    displayTitle: 'Heavy cargo & long distance',
-    description: 'Trucks for bigger jobs',
+    title: 'Heavy cargo',
+    displayTitle: 'Heavy cargo',
+    description: 'Trucks for big jobs',
     icon: Icons.fire_truck_outlined,
     accent: Color(0xFFB45309),
     tint: Color(0xFFFFF7ED),

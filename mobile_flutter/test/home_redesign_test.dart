@@ -110,15 +110,51 @@ void main() {
     );
     for (final label in [
       'Personal trip',
-      'Family or group travel',
-      'Airport transfer',
+      'Group travel',
       'Deliver goods',
       'Moving goods',
-      'Business transport',
-      'Heavy cargo & long distance',
+      'Heavy cargo',
     ]) {
       expect(find.byKey(Key('home-purpose-$label')), findsOneWidget);
     }
+    expect(
+      find.byKey(const Key('home-purpose-Airport transfer')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('home-purpose-Business transport')),
+      findsNothing,
+    );
+    for (final subtitle in [
+      'City and nearby travel',
+      'Travel together',
+      'Parcels & small cargo',
+      'Vans for larger loads',
+      'Trucks for big jobs',
+    ]) {
+      expect(find.text(subtitle), findsOneWidget);
+    }
+
+    final personal = tester.getRect(
+      find.byKey(const Key('home-purpose-Personal trip')),
+    );
+    final group = tester.getRect(
+      find.byKey(const Key('home-purpose-Group travel')),
+    );
+    final deliver = tester.getRect(
+      find.byKey(const Key('home-purpose-Deliver goods')),
+    );
+    final moving = tester.getRect(
+      find.byKey(const Key('home-purpose-Moving goods')),
+    );
+    final heavy = tester.getRect(
+      find.byKey(const Key('home-purpose-Heavy cargo')),
+    );
+    expect(personal.top, group.top);
+    expect(deliver.top, moving.top);
+    expect(deliver.top, greaterThan(personal.top));
+    expect(heavy.top, greaterThan(deliver.top));
+    expect(heavy.width, greaterThan(personal.width * 1.8));
   });
 
   testWidgets('approved Popular category thumbnails render locally', (
@@ -178,6 +214,102 @@ void main() {
     expect(find.text('Approx. cargo weight (kg)'), findsOneWidget);
     expect(find.text('Covered cargo space required'), findsOneWidget);
     semantics.dispose();
+  });
+
+  testWidgets('all five Home options retain their transport-purpose mappings', (
+    tester,
+  ) async {
+    await pumpHome(tester);
+
+    for (final label in ['Personal trip', 'Group travel']) {
+      final card = find.byKey(Key('home-purpose-$label'));
+      await tester.ensureVisible(card);
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      expect(find.text('Passengers (optional)'), findsOneWidget);
+    }
+
+    final deliver = find.byKey(const Key('home-purpose-Deliver goods'));
+    await tester.ensureVisible(deliver);
+    await tester.tap(deliver);
+    await tester.pumpAndSettle();
+    expect(find.text('Parcel delivery'), findsOneWidget);
+    expect(find.text('Small cargo'), findsOneWidget);
+    await tester.tap(find.text('Parcel delivery'));
+    await tester.pumpAndSettle();
+    expect(find.text('Approx. cargo weight (kg)'), findsOneWidget);
+
+    final moving = find.byKey(const Key('home-purpose-Moving goods'));
+    await tester.ensureVisible(moving);
+    await tester.tap(moving);
+    await tester.pumpAndSettle();
+    expect(find.text('Approx. cargo weight (kg)'), findsOneWidget);
+
+    final heavy = find.byKey(const Key('home-purpose-Heavy cargo'));
+    await tester.ensureVisible(heavy);
+    await tester.tap(heavy);
+    await tester.pumpAndSettle();
+    expect(find.text('Regional cargo'), findsOneWidget);
+    expect(find.text('Heavy cargo'), findsWidgets);
+    expect(find.text('Long-distance travel'), findsOneWidget);
+  });
+
+  testWidgets('focused requirement fields reserve label and error spacing', (
+    tester,
+  ) async {
+    await pumpHome(tester, size: const Size(320, 720));
+    await tester.tap(find.byKey(const Key('home-purpose-Personal trip')));
+    await tester.pumpAndSettle();
+
+    final passengers = find.byKey(const Key('requirements-passengers'));
+    final driver = find.byKey(const Key('requirements-driver-preference'));
+    await tester.ensureVisible(passengers);
+    await tester.showKeyboard(passengers);
+    await tester.enterText(passengers, '101');
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a valid passenger count (1–100)'), findsOneWidget);
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    await tester.ensureVisible(driver);
+    await tester.pumpAndSettle();
+    final passengerRect = tester.getRect(passengers);
+    final driverRect = tester.getRect(driver);
+    expect(driverRect.top - passengerRect.bottom, greaterThanOrEqualTo(12));
+    expect(tester.takeException(), isNull);
+
+    tester.testTextInput.hide();
+  });
+
+  testWidgets('cargo fields and compact toggles remain aligned', (
+    tester,
+  ) async {
+    await pumpHome(tester, size: const Size(390, 844), textScale: 2);
+    final moving = find.byKey(const Key('home-purpose-Moving goods'));
+    await tester.ensureVisible(moving);
+    await tester.pumpAndSettle();
+    await tester.tap(moving);
+    await tester.pumpAndSettle();
+
+    final weight = find.byKey(const Key('requirements-cargo-weight'));
+    final volume = find.byKey(const Key('requirements-cargo-volume'));
+    await tester.ensureVisible(weight);
+    await tester.showKeyboard(weight);
+    await tester.enterText(weight, '-1');
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a valid non-negative amount'), findsOneWidget);
+
+    await tester.ensureVisible(volume);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(volume).top - tester.getRect(weight).bottom,
+      greaterThanOrEqualTo(12),
+    );
+    expect(find.byKey(const Key('requirements-return-trip')), findsOneWidget);
+    expect(find.byKey(const Key('requirements-covered-cargo')), findsOneWidget);
+    expect(find.byKey(const Key('requirements-long-distance')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    tester.testTextInput.hide();
   });
 
   testWidgets('manual location and valid need navigate to Explore', (
@@ -289,9 +421,7 @@ void main() {
     expect(find.text('Profile'), findsOneWidget);
     expect(find.byTooltip('Add a vehicle'), findsNothing);
     expect(find.byType(FloatingActionButton), findsNothing);
-    final heavyCard = find.byKey(
-      const Key('home-purpose-Heavy cargo & long distance'),
-    );
+    final heavyCard = find.byKey(const Key('home-purpose-Heavy cargo'));
     await tester.ensureVisible(heavyCard);
     await tester.pumpAndSettle();
     expect(
@@ -306,7 +436,7 @@ void main() {
     await pumpHome(tester, size: const Size(390, 844));
     for (final entry in <(String, String)>[
       ('Personal trip', 'Personal trip'),
-      ('Business transport', 'Business\ntransport'),
+      ('Group travel', 'Group travel'),
     ]) {
       final card = find.byKey(Key('home-purpose-${entry.$1}'));
       final title = tester.widget<Text>(

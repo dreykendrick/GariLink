@@ -11,6 +11,11 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 abstract class AuthRepository {
+  Future<RegistrationResult> registerEmail(String email, String password);
+  Future<void> resendEmail(String email);
+  Future<AuthResponse> confirmEmail(String tokenHash);
+  Future<void> recoverEmail(String email);
+  Future<void> resetEmail(String tokenHash, String password);
   Future<AuthResponse> login(String identifier, String password);
   Future<RegistrationResult> register({
     required String phoneNumber,
@@ -36,14 +41,21 @@ abstract class AuthRepository {
 }
 
 class RegistrationResult {
+  final String? pendingEmail;
   final AuthResponse? session;
   final String? pendingPhone;
   const RegistrationResult.authenticated(AuthResponse value)
-    : session = value,
+    : pendingEmail = null,
+      session = value,
       pendingPhone = null;
   const RegistrationResult.pending(String phone)
-    : session = null,
+    : pendingEmail = null,
+      session = null,
       pendingPhone = phone;
+  const RegistrationResult.email(String email)
+    : pendingEmail = email,
+      session = null,
+      pendingPhone = null;
 }
 
 class OtpVerificationResult {
@@ -70,6 +82,41 @@ class AuthRepositoryImpl implements AuthRepository {
   final ApiClient _apiClient;
 
   const AuthRepositoryImpl(this._apiClient);
+
+  @override
+  Future<RegistrationResult> registerEmail(
+    String email,
+    String password,
+  ) async {
+    await _apiClient.post<Map<String, dynamic>>(
+      '/auth/register',
+      data: {'email': email.trim().toLowerCase(), 'password': password},
+    );
+    return RegistrationResult.email(email.trim().toLowerCase());
+  }
+
+  @override
+  Future<void> resendEmail(String email) =>
+      _apiClient.post<void>('/auth/email/resend', data: {'email': email});
+  @override
+  Future<AuthResponse> confirmEmail(String tokenHash) async =>
+      _parseAuthResponse(
+        await _apiClient.post<Map<String, dynamic>>(
+          '/auth/email/confirm',
+          data: {'tokenHash': tokenHash},
+        ),
+      );
+  @override
+  Future<void> recoverEmail(String email) => _apiClient.post<void>(
+    '/auth/email/recover',
+    data: {'email': email.trim().toLowerCase()},
+  );
+  @override
+  Future<void> resetEmail(String tokenHash, String password) =>
+      _apiClient.post<void>(
+        '/auth/email/reset',
+        data: {'tokenHash': tokenHash, 'newPassword': password},
+      );
 
   @override
   Future<AuthResponse> login(String identifier, String password) async {

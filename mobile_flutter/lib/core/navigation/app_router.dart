@@ -35,6 +35,7 @@ import '../../features/owner/presentation/pages/menu_page.dart';
 import '../../features/owner/presentation/pages/create_listing_page.dart';
 import '../../features/owner/data/owner_draft_repository.dart';
 import 'placeholder_pages.dart';
+import '../../features/authentication/presentation/pages/email_confirmation_page.dart';
 
 final goRouterRootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final goRouterShellKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -52,6 +53,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authStateProvider);
       final isAuthenticated = authState.isAuthenticated;
       final location = state.matchedLocation;
+      // Keep one-time callback context during cold-start session hydration.
+      if (location == '/auth/email-callback') return null;
       if (!authState.isHydrated) {
         return location == '/splash' ? null : '/splash';
       }
@@ -93,9 +96,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/menu';
 
       if (!isAuthenticated && isProtectedRoute) return '/login';
-      if (isAuthenticated && authState.user?.isPhoneVerified == false) {
-        return location == '/verify-phone' ? null : '/verify-phone';
-      }
       if (isAuthenticated && isOwnerRoute && !_isOwner(authState.user)) {
         return '/home';
       }
@@ -105,6 +105,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/confirm-email',
+        parentNavigatorKey: goRouterRootKey,
+        builder: (context, state) => const EmailConfirmationPage(),
+      ),
+      GoRoute(
+        path: '/auth/email-callback',
+        parentNavigatorKey: goRouterRootKey,
+        builder: (context, state) => EmailConfirmationPage(
+          tokenHash:
+              ['signup', 'recovery'].contains(state.uri.queryParameters['type'])
+              ? state.uri.queryParameters['token_hash']
+              : null,
+          invalidLink:
+              ![
+                'signup',
+                'recovery',
+              ].contains(state.uri.queryParameters['type']) ||
+              (state.uri.queryParameters['token_hash']?.isEmpty ?? true),
+          recovery: state.uri.queryParameters['type'] == 'recovery',
+        ),
+      ),
       GoRoute(
         path: '/splash',
         parentNavigatorKey: goRouterRootKey,

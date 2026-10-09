@@ -20,6 +20,7 @@ class ForgotPasswordPage extends ConsumerStatefulWidget {
 class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  bool _legacyPhone = false;
   bool _isLoading = false;
 
   @override
@@ -36,19 +37,22 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     });
 
     try {
-      await ref
-          .read(authStateProvider.notifier)
-          .forgotPassword(_phoneController.text.trim());
+      final notifier = ref.read(authStateProvider.notifier);
+      if (_legacyPhone) {
+        await notifier.forgotPassword(_phoneController.text.trim());
+      } else {
+        await notifier.recoverEmail(_phoneController.text.trim());
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'If the account exists, a verification code was sent.',
+              'If the account exists, recovery instructions were sent.',
             ),
             backgroundColor: GariLinkColors.success,
           ),
         );
-        context.push('/reset-password');
+        if (_legacyPhone) context.push('/reset-password');
       }
     } catch (e) {
       if (mounted) {
@@ -96,21 +100,43 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                 AuthHeading(
                   title: 'Recover your account',
                   description:
-                      "Enter your phone number and we’ll send a code to reset your password.",
+                      'Enter your email to receive password recovery instructions.',
                 ),
                 const SizedBox(height: GariLinkSpacing.xxxl),
                 AppTextField(
-                  labelText: 'Phone number',
-                  hintText: '0712 345 678',
+                  labelText: _legacyPhone ? 'Phone number' : 'Email',
+                  hintText: _legacyPhone ? '0712 345 678' : 'you@example.com',
                   controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  validator: validateTanzanianPhone,
+                  keyboardType: _legacyPhone
+                      ? TextInputType.phone
+                      : TextInputType.emailAddress,
+                  validator: (value) => _legacyPhone
+                      ? validateTanzanianPhone(value)
+                      : (value != null &&
+                                RegExp(
+                                  r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                                ).hasMatch(value.trim())
+                            ? null
+                            : 'Enter a valid email address'),
                 ),
                 const SizedBox(height: GariLinkSpacing.xxxl),
                 AppButton(
-                  text: 'Send reset code',
+                  text: _legacyPhone ? 'Send reset code' : 'Send reset email',
                   isLoading: _isLoading,
                   onPressed: _submit,
+                ),
+                TextButton(
+                  onPressed: _isLoading
+                      ? null
+                      : () => setState(() {
+                          _legacyPhone = !_legacyPhone;
+                          _phoneController.clear();
+                        }),
+                  child: Text(
+                    _legacyPhone
+                        ? 'Use email recovery'
+                        : 'Recover a legacy phone account',
+                  ),
                 ),
               ],
             ),

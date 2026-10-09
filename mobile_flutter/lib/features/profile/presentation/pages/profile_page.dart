@@ -115,7 +115,9 @@ class ProfilePage extends ConsumerWidget {
           Text(name, style: GariLinkTypography.sectionTitle),
           const SizedBox(height: GariLinkSpacing.xs),
           Text(
-            user?.phoneNumber ?? '',
+            user?.phoneNumber.isNotEmpty == true
+                ? user!.phoneNumber
+                : (user?.email ?? ''),
             style: GoogleFonts.inter(
               color: GariLinkColors.accent,
               fontSize: 13,

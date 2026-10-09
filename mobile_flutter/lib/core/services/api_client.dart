@@ -24,6 +24,10 @@ class ApiClient {
     '/auth/otp/verify',
     '/auth/password/forgot',
     '/auth/password/reset',
+    '/auth/email/resend',
+    '/auth/email/recover',
+    '/auth/email/confirm',
+    '/auth/email/reset',
   };
 
   ApiClient(this._storageService, {String? baseUrl, Dio? dio}) {
