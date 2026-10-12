@@ -116,11 +116,11 @@ returns jsonb language sql stable security definer set search_path='' as $$
   );
 $$;
 
-create function public.garilink_v2_update_vehicle(target_vehicle_id uuid, patch jsonb)
+create function public.garilink_v2_update_vehicle(vehicle_id uuid, patch jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare actor uuid; v public.gl_vehicles; item record; category text; availability text; capability_value jsonb;
 begin
-  select * into v from public.gl_vehicles where id=target_vehicle_id for update;
+  select * into v from public.gl_vehicles where id=garilink_v2_update_vehicle.vehicle_id for update;
   if not found then raise exception 'Vehicle not found' using errcode='PT404'; end if;
   actor:=garilink_private.workspace_access(v.workspace_id,true);
   perform garilink_private.require_capability(actor,'MANAGE_LISTINGS');
@@ -158,11 +158,11 @@ returns jsonb language sql stable security definer set search_path='' as $$
   where (garilink_private.v2_discovery_eligibility(v)->>'discoverable')::boolean;
 $$;
 
-create function public.garilink_v2_vehicle_eligibility(target_vehicle_id uuid)
+create function public.garilink_v2_vehicle_eligibility(vehicle_id uuid)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare v public.gl_vehicles;
 begin
-  select * into v from public.gl_vehicles where id=target_vehicle_id;
+  select * into v from public.gl_vehicles where id=garilink_v2_vehicle_eligibility.vehicle_id;
   if not found then raise exception 'Vehicle not found' using errcode='PT404'; end if;
   perform garilink_private.workspace_access(v.workspace_id);
   return garilink_private.v2_discovery_eligibility(v);

@@ -38,7 +38,9 @@ jobs:
         run: node supabase/tests/run-ci-sql.mjs
       - name: API unit regression (not database evidence)
         working-directory: supabase
-        run: npm ci && npm test
+        run: |
+          python -m pip install pglast==7.10
+          npm ci && npm test
   supabase-platform:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

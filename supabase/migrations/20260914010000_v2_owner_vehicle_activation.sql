@@ -90,11 +90,11 @@ begin
 end;
 $$;
 
-create function public.garilink_v2_set_publication(target_vehicle_id uuid, action text) returns jsonb
+create function public.garilink_v2_set_publication(vehicle_id uuid, action text) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare v public.gl_vehicles; l public.gl_listings; actor uuid; readiness jsonb; target text;
 begin
-  select * into v from public.gl_vehicles where id=target_vehicle_id for update;
+  select * into v from public.gl_vehicles where id=garilink_v2_set_publication.vehicle_id for update;
   if not found then raise exception 'Vehicle not found' using errcode='PT404'; end if;
   actor := garilink_private.workspace_access(v.workspace_id,true);
   perform garilink_private.require_capability(actor,'MANAGE_LISTINGS');
