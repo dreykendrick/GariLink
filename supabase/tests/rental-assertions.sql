@@ -11,11 +11,21 @@ select pg_temp.assert_true(public.garilink_create_rental(jsonb_build_object(
 -- Once a listing joins V2 matching, rental creation must re-check live
 -- requestability. Exact retries still recover the original result after a
 -- state change, while a new stale submission is rejected.
+-- Administrative fixture setup only; keep business RPCs under the renter role.
+reset role;
+select pg_temp.assert_true(current_user=session_user,'BUSY fixture uses test administrator');
 update public.gl_vehicles v set
   vehicle_category='SUV',
   capabilities='{"schema_version":1,"passenger_capacity":5,"with_driver":true,"self_drive":true,"long_distance":true}'::jsonb,
   operational_availability='BUSY'
 where v.id=(select l.vehicle_id from public.gl_listings l where l.id=current_setting('test.rental.id')::uuid);
+set local role authenticated;
+select pg_temp.assert_true(current_user='authenticated' and auth.uid()='22222222-2222-4222-8222-222222222222'::uuid
+  and auth.jwt()->>'session_id'='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','renter role and claims restored after BUSY fixture');
+do $$ begin
+  begin update public.gl_vehicles set operational_availability='AVAILABLE';
+    raise exception 'Expected direct vehicle write denied'; exception when insufficient_privilege then null; end;
+end $$;
 select pg_temp.assert_true(public.garilink_create_rental(jsonb_build_object(
   'listingId',current_setting('test.rental.id'),'requestId','51111111-1111-4111-8111-111111111111',
   'startDate',(current_date + 10)::text,'endDate',(current_date + 13)::text,'pickupNotes','Airport')) ->> 'id'
@@ -26,8 +36,13 @@ do $$ begin
     'startDate',(current_date + 20)::text,'endDate',(current_date + 22)::text));
     raise exception 'Expected busy V2 vehicle rejected'; exception when sqlstate 'PT409' then null; end;
 end $$;
+reset role;
+select pg_temp.assert_true(current_user=session_user,'AVAILABLE fixture uses test administrator');
 update public.gl_vehicles v set operational_availability='AVAILABLE'
 where v.id=(select l.vehicle_id from public.gl_listings l where l.id=current_setting('test.rental.id')::uuid);
+set local role authenticated;
+select pg_temp.assert_true(current_user='authenticated' and auth.uid()='22222222-2222-4222-8222-222222222222'::uuid
+  and auth.jwt()->>'session_id'='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','renter role and claims restored after AVAILABLE fixture');
 do $$ begin
   begin perform public.garilink_create_rental(jsonb_build_object(
     'listingId',current_setting('test.rental.id'),'requestId','55555555-5555-4555-8555-555555555555',

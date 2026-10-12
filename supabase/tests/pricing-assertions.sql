@@ -1,6 +1,9 @@
+reset role;
+select pg_temp.assert_true(current_user=session_user,'pricing fixture lookup uses test administrator');
 select set_config('test.pricing.vehicle',(select vehicle_id::text from public.gl_listings where id=current_setting('test.rental.id')::uuid),true);
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","session_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}',true);
+select pg_temp.assert_true(current_user='authenticated' and auth.uid()='11111111-1111-4111-8111-111111111111'::uuid,'pricing RPCs use authenticated owner');
 select pg_temp.assert_true(
   public.garilink_vehicle_rental_pricing(current_setting('test.pricing.vehicle')::uuid)->>'configured'='false',
   'unconfigured pricing is explicit');
@@ -29,6 +32,9 @@ do $$ begin
     raise exception 'Expected unrelated renter rejected'; exception when insufficient_privilege then null; end;
 end $$;
 reset role;
+-- Pure private-engine and immutable-trigger checks intentionally use the test
+-- administrator. All pricing business RPCs above used authenticated actors.
+select pg_temp.assert_true(current_user=session_user,'private pricing engine uses test administrator');
 select pg_temp.assert_true(
   garilink_private.evaluate_rental_pricing_v1(
     '{"policyVersion":1,"currency":"TZS","baseChargeMinor":25000,"minimumChargeMinor":50000,"durationRateMinorPerDay":80000,"distanceRateMinorPerKilometer":1500}',
