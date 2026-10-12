@@ -6,6 +6,32 @@ set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","session_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}',true);
 select pg_temp.assert_true(pg_temp.request_actor_matches('11111111-1111-4111-8111-111111111111',
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'media operations use authenticated owner');
+select pg_temp.assert_true(has_schema_privilege(current_user,'storage','USAGE'),
+  'authenticated fixture can resolve Storage objects');
+select pg_temp.assert_true(not has_schema_privilege(current_user,'storage','CREATE'),
+  'authenticated fixture cannot create Storage schema objects');
+select pg_temp.assert_true(not has_schema_privilege(current_user,'auth','USAGE'),
+  'fixture correction does not grant Auth schema access');
+select pg_temp.assert_true(has_table_privilege(current_user,'storage.objects','INSERT'),
+  'existing object insert permission retained for policy tests');
+select pg_temp.assert_true((select c.relrowsecurity and c.relowner<>r.oid
+  from pg_class c join pg_roles r on r.rolname=current_user where c.oid='storage.objects'::regclass),
+  'Storage RLS remains enabled and authenticated is not table owner');
+select pg_temp.assert_true((select not r.rolsuper and not r.rolbypassrls from pg_roles r where r.rolname=current_user),
+  'authenticated fixture has no superuser or RLS bypass');
+do $$ declare table_name text; begin
+  foreach table_name in array array['verification_requirements','verification_cases',
+    'verification_documents','verification_review_assignments','verification_decisions','verification_audit'] loop
+    perform pg_temp.assert_true(not has_table_privilege(current_user,
+      'garilink_private.'||table_name,'SELECT,INSERT,UPDATE,DELETE'),
+      'Storage usage does not grant private verification access');
+  end loop;
+  begin
+    insert into storage.objects(bucket_id,name,metadata) values('verification-private',
+      gen_random_uuid()::text||'/'||gen_random_uuid()::text,'{"size":68,"mimetype":"image/png"}');
+    raise exception 'Expected private verification upload denied';
+  exception when insufficient_privilege then null; end;
+end $$;
 select set_config('test.media.reserved',public.garilink_reserve_vehicle_media(current_setting('test.media.vehicle')::uuid,'image/jpeg')::text,true);
 select pg_temp.assert_true((current_setting('test.media.reserved')::jsonb->>'position')::int=1,'reservation follows cover deterministically');
 insert into storage.objects(bucket_id,name,metadata) values('vehicle-media',current_setting('test.media.reserved')::jsonb->>'storagePath','{"size":2048,"mimetype":"image/jpeg"}');
@@ -29,6 +55,11 @@ do $$ begin
     raise exception 'Expected cross-workspace reserve denied'; exception when insufficient_privilege then null; end;
   begin perform public.garilink_vehicle_media_delete_ticket((current_setting('test.media.reserved')::jsonb->>'id')::uuid);
     raise exception 'Expected cross-workspace delete denied'; exception when insufficient_privilege then null; end;
+  begin
+    insert into storage.objects(bucket_id,name,metadata) values('vehicle-media',
+      current_setting('test.media.reserved')::jsonb->>'storagePath','{"size":2048,"mimetype":"image/jpeg"}');
+    raise exception 'Expected cross-workspace Storage upload denied';
+  exception when insufficient_privilege then null; end;
 end $$;
 select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","session_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}',true);
 select pg_temp.assert_true(public.garilink_vehicle_media_delete((current_setting('test.media.reserved')::jsonb->>'id')::uuid)->>'deleted'='true','owner removes media record');

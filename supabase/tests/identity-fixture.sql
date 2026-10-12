@@ -22,6 +22,9 @@ create table storage.buckets (id text primary key,name text,public boolean,file_
 create table storage.objects (id uuid primary key default gen_random_uuid(),bucket_id text references storage.buckets(id),name text,metadata jsonb);
 alter table storage.objects enable row level security;
 grant select,insert,update,delete on storage.objects to authenticated;
+-- Disposable stand-in only: resolve Storage objects so actual RLS policies
+-- can be exercised. No CREATE, Auth usage, ownership or BYPASSRLS granted.
+grant usage on schema storage to authenticated;
 create function auth.jwt() returns jsonb language sql stable as
   $$ select nullif(current_setting('request.jwt.claims', true), '')::jsonb $$;
 create function auth.uid() returns uuid language sql stable as
