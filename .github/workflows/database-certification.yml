@@ -1,0 +1,63 @@
+name: Isolated database certification
+on:
+  pull_request:
+    paths: ['supabase/**', '.github/workflows/database-certification.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-logic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5@sha256:01a6a70e41e6c4467c8f55f6063555ed72db2d6662cd0d571040d42eadaeb6f6
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.20.0'
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Create empty test database without image-preinstalled public PostGIS
+        env:
+          PGPASSWORD: disposable-ci-only
+        run: psql -X -w -h 127.0.0.1 -p 5433 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE garilink_dev TEMPLATE template0;'
+      - name: Canonical migrations and rollback SQL authorization assertions
+        env:
+          GARILINK_DISPOSABLE_SQL: 'true'
+          PGPASSWORD: disposable-ci-only
+        run: node supabase/tests/run-ci-sql.mjs
+      - name: API unit regression (not database evidence)
+        working-directory: supabase
+        run: npm ci && npm test
+  supabase-platform:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.20.0'
+      - name: Start disposable Supabase services and canonical migrations
+        run: npx --yes supabase@2.114.0 start
+      - name: Repeat clean migration chain on this disposable runner only
+        run: npx --yes supabase@2.114.0 db reset --local --no-seed
+      - name: Real platform schema smoke assertions
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          PGPASSWORD=postgres psql -X -w -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/platform-smoke.sql
+          node supabase/tests/platform-health.mjs
+      - name: Stop disposable runner resources
+        if: always()
+        run: npx --yes supabase@2.114.0 stop --no-backup
