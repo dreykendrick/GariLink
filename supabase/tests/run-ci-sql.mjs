@@ -6,8 +6,9 @@ import { spawnSync } from 'node:child_process';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = (path) => readFileSync(`${root}${path}`, 'utf8');
 const migrations = readdirSync(`${root}migrations`).filter((name) => name.endsWith('.sql')).sort();
-if (!migrations.includes('20261009000000_email_first_preparation_access.sql')) {
-  throw new Error('Required email-first migration missing');
+if (!migrations.includes('20261009000000_email_first_preparation_access.sql') ||
+    !migrations.includes('20261012000000_verification_closed_foundation.sql')) {
+  throw new Error('Required email-first or closed verification migration missing');
 }
 const assertions = ['identity', 'workspace', 'marketplace', 'rental', 'pricing', 'media', 'email-auth'];
 export const sql = [
@@ -15,7 +16,15 @@ export const sql = [
   'CREATE SCHEMA IF NOT EXISTS extensions;',
   read('tests/identity-fixture.sql'),
   ...migrations.map((name) => read(`migrations/${name}`).replace(/^\s*(begin|commit);\s*$/gim, '')),
-  ...assertions.map((name) => read(`tests/${name}-assertions.sql`)),
+  read('tests/request-actor-assertions.sql'),
+  ...assertions.flatMap((name) => [
+    `select 'BEGIN SQL SUITE: ${name}' as certification_stage;`,
+    read(`tests/${name}-assertions.sql`),
+    `select 'PASS SQL SUITE: ${name}' as certification_stage;`,
+  ]),
+  "select 'BEGIN SQL SUITE: verification-closed' as certification_stage;",
+  read('tests/verification-closed-assertions.sql'),
+  "select 'PASS SQL SUITE: verification-closed' as certification_stage;",
   'ROLLBACK;',
 ].join('\n');
 

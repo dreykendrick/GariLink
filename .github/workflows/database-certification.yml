@@ -60,6 +60,14 @@ jobs:
           sudo apt-get update && sudo apt-get install -y postgresql-client
           PGPASSWORD=postgres psql -X -w -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/platform-smoke.sql
           node supabase/tests/platform-health.mjs
+      - name: Closed verification SQL on real disposable Supabase (rollback)
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -w -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/platform-verification.sql
+      - name: Closed verification real Auth and Storage API boundaries
+        env:
+          GARILINK_DISPOSABLE_KYC: 'true'
+        run: node supabase/tests/platform-verification.mjs
       - name: Stop disposable runner resources
         if: always()
         run: npx --yes supabase@2.114.0 stop --no-backup
