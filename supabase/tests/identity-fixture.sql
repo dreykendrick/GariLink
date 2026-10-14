@@ -22,9 +22,26 @@ create table storage.buckets (id text primary key,name text,public boolean,file_
 create table storage.objects (id uuid primary key default gen_random_uuid(),bucket_id text references storage.buckets(id),name text,metadata jsonb);
 alter table storage.objects enable row level security;
 grant select,insert,update,delete on storage.objects to authenticated;
+-- Disposable stand-in only: resolve Storage objects so actual RLS policies
+-- can be exercised. No CREATE, Auth usage, ownership or BYPASSRLS granted.
+grant usage on schema storage to authenticated;
 create function auth.jwt() returns jsonb language sql stable as
   $$ select nullif(current_setting('request.jwt.claims', true), '')::jsonb $$;
 create function auth.uid() returns uuid language sql stable as
   $$ select (auth.jwt() ->> 'sub')::uuid $$;
 create function pg_temp.assert_true(value boolean, description text) returns void language plpgsql as $$
 begin if value is distinct from true then raise exception 'Assertion failed: %', description; end if; end $$;
+-- Test-only invoker helper. Never grant Auth schema access for actor assertions.
+-- Malformed/absent/non-object claims fail closed; no claim contents in errors.
+create function pg_temp.request_actor_matches(expected_sub uuid, expected_session uuid)
+returns boolean language plpgsql security invoker set search_path='' as $$
+declare claims jsonb;
+begin
+  claims := nullif(current_setting('request.jwt.claims',true),'')::jsonb;
+  return coalesce(current_user='authenticated' and jsonb_typeof(claims)='object'
+    and jsonb_typeof(claims->'sub')='string'
+    and jsonb_typeof(claims->'session_id')='string'
+    and claims->>'sub'=expected_sub::text
+    and claims->>'session_id'=expected_session::text,false);
+exception when invalid_text_representation then return false;
+end; $$;
