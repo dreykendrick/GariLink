@@ -167,10 +167,11 @@ class InvestorPreviewStore {
         ? Map<String, dynamic>.from(body)
         : <String, dynamic>{};
     if (path == '/auth/login' || path == '/auth/refresh') {
-      if (path == '/auth/login')
+      if (path == '/auth/login') {
         role = data['identifier'].toString().startsWith('owner@')
             ? 'owner'
             : 'renter';
+      }
       await _persist();
       return {
         'accessToken': 'LOCAL-PREVIEW-NOT-A-REAL-TOKEN',
@@ -181,7 +182,7 @@ class InvestorPreviewStore {
     }
     if (path == '/auth/logout') return null;
     if (method == 'GET' && path == '/me') return user;
-    if (method == 'GET' && path == '/workspaces')
+    if (method == 'GET' && path == '/workspaces') {
       return role == 'owner'
           ? [
               {
@@ -191,10 +192,13 @@ class InvestorPreviewStore {
               },
             ]
           : [];
-    if (method == 'GET' && path == '/listings/mine')
+    }
+    if (method == 'GET' && path == '/listings/mine') {
       return {'data': role == 'owner' ? listings : []};
-    if (method == 'GET' && path == '/listings/saved')
+    }
+    if (method == 'GET' && path == '/listings/saved') {
       return {'data': listings.where((v) => saved.contains(v['id'])).toList()};
+    }
     if (path.endsWith('/save') && (method == 'POST' || method == 'DELETE')) {
       final id = path.split('/')[2];
       _listing(id);
@@ -218,8 +222,9 @@ class InvestorPreviewStore {
             .toList(),
       };
     }
-    if (method == 'GET' && path.startsWith('/listings/'))
+    if (method == 'GET' && path.startsWith('/listings/')) {
       return _listing(path.split('/')[2]);
+    }
     if (method == 'GET' && path == '/v2/vehicles/discoverable') return listings;
     // Real suitability/routing is intentionally not simulated as a guarantee.
     if (path == '/v2/vehicles/match' || path == '/v2/vehicles/nearby') {
@@ -233,15 +238,17 @@ class InvestorPreviewStore {
       );
     }
     if (path == '/rentals' && method == 'POST') {
-      if (role != 'renter')
+      if (role != 'renter') {
         throw const ForbiddenException(
           'Use the Demo renter profile to request.',
         );
+      }
       final listing = _listing(data['listingId']);
       final start = DateTime.parse(data['startDate'] as String);
       final end = DateTime.parse(data['endDate'] as String);
-      if (!end.isAfter(start))
+      if (!end.isAfter(start)) {
         throw const ValidationException('Return must be after pickup.');
+      }
       final prior = rentals.where((v) => v['requestId'] == data['requestId']);
       if (prior.isNotEmpty) return jsonDecode(jsonEncode(prior.first));
       final now = DateTime.now().toIso8601String();
@@ -271,11 +278,13 @@ class InvestorPreviewStore {
       await _persist();
       return jsonDecode(jsonEncode(record));
     }
-    if (method == 'GET' && path == '/rentals')
+    if (method == 'GET' && path == '/rentals') {
       return role == 'renter' ? jsonDecode(jsonEncode(rentals)) : [];
+    }
     if (path.startsWith('/owner/workspaces/$workspace/rentals')) {
-      if (role != 'owner')
+      if (role != 'owner') {
         throw const ForbiddenException('Use the Demo owner profile.');
+      }
       if (method == 'GET') return jsonDecode(jsonEncode(rentals));
       final parts = path.split('/');
       final id = parts.length > 5 ? parts[5] : '';
@@ -298,10 +307,11 @@ class InvestorPreviewStore {
         'start': 'ACTIVE',
         'complete': 'COMPLETED',
       };
-      if (method != 'PATCH' || allowed[action] != item['status'])
+      if (method != 'PATCH' || allowed[action] != item['status']) {
         throw const ValidationException(
           'This demo action is not available for the current status.',
         );
+      }
       item['status'] = next[action];
       item['updatedAt'] = DateTime.now().toIso8601String();
       if (action == 'reject') item['rejectionReason'] = data['reason'];

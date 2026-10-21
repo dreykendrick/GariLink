@@ -1,6 +1,6 @@
 {
   "files": {
-    ".github/workflows/emergency-investor-apk.yml": "941e53ef68cf1f5c4a9a56e55187c0bb3d4e6a1975cd90b3a1d81ed55ef9a1f4",
+    ".github/workflows/emergency-investor-apk.yml": "59adfae89db35d4ed97952e9d0ce812bc0a24281897eb8f4ecf3cb2b4a764021",
     "mobile_flutter/.metadata": "a3c8b44d05c755a0f81c9f4d78ccd341f41d9b458ab62cdf2b9db690f9ac9e06",
     "mobile_flutter/analysis_options.yaml": "e0ea485cfdbc3e12b93efb8679a5ea73ebfe20ea4ca0c473dc594fc2fb274ed5",
     "mobile_flutter/android/.gitignore": "b027c9de1011765c015e5819bf857c0d75bfcd0886fb01721c091159012e50f1",
@@ -40,7 +40,7 @@
     "mobile_flutter/lib/core/navigation/app_router.dart": "b50e76ead79d23ab2260105666f9a5131c45b97e23c3076017001b6ccbb9bea0",
     "mobile_flutter/lib/core/navigation/booking_continuation.dart": "f1cce974733e898dac98cb6122dfa0323dcc8717d22f1c0795bb3550755f1dbd",
     "mobile_flutter/lib/core/navigation/placeholder_pages.dart": "aaa55e0e956938d541ecd95e16e822ecab4ab302fcc123f4762b7430d82c108a",
-    "mobile_flutter/lib/core/preview/investor_preview.dart": "b5547c0119e1a1d3da9945307224a7108e57487fdd8f1de61263ae1dcf8a488f",
+    "mobile_flutter/lib/core/preview/investor_preview.dart": "e4f1bfd5f6bd39cb33e6e73acfe3db512bde36ca0f206b77e7fc2f532e3581fe",
     "mobile_flutter/lib/core/preview/preview_banner.dart": "f953a4c00e0923fcb2de4dae3377d12f470a6f24f7d9b03870bc968655d58d89",
     "mobile_flutter/lib/core/services/api_client.dart": "3ae8b2e28d9965eb4ba1a2f3335b420d97ee0129dd4e60bdf008d02f2951d7d7",
     "mobile_flutter/lib/core/services/error_reporter.dart": "736b14db221535b4d2933555f149129ea8c51b26b795ef510f9c6f7df781953e",

@@ -59,6 +59,7 @@ jobs:
           java -version
           flutter pub get --enforce-lockfile
       - name: Build earliest internal candidate (DEBUG SIGNED, NOT production)
+        id: build
         run: |
           set -euo pipefail
           flutter build apk --debug --no-pub --build-name=1.0.0-investor --build-number=20261022 \
@@ -75,6 +76,8 @@ jobs:
           cp ../EMERGENCY_SOURCE_MANIFEST.json ../dist/
           (cd ../dist && sha256sum *.apk > SHA256SUMS && stat --printf='%n %s bytes\n' *.apk > sizes.txt)
           printf 'commit=%s\nrun=%s\nsigning=DEBUG_INTERNAL_ONLY\nbackend=LOCAL_SIMULATED\nphysical_qa=NOT_EXECUTED\nfull_regression=PENDING\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" > ../dist/provenance.txt
+          cat ../dist/SHA256SUMS ../dist/sizes.txt ../dist/signature.txt
+          head -n 1 ../dist/package.txt
       - name: Upload verified candidate immediately, before full regression
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -82,8 +85,13 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 7
-      - name: Analyzer and full Flutter regression (must pass for final readiness)
+      - name: Formatter and analyzer (must pass for final readiness)
         run: |
           set -euo pipefail
+          dart format --output=none --set-exit-if-changed lib test
           flutter analyze --no-pub
+      - name: Full Flutter regression
+        if: always() && steps.build.outcome == 'success'
+        run: |
+          set -euo pipefail
           flutter test --no-pub --reporter expanded
