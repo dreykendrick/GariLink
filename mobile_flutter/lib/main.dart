@@ -9,6 +9,8 @@ import 'core/theme/app_theme.dart';
 import 'core/navigation/app_router.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/error_reporter.dart';
+import 'core/preview/investor_preview.dart';
+import 'core/preview/preview_banner.dart';
 
 void main() {
   const reporter = SafeErrorReporter();
@@ -55,6 +57,12 @@ class GariLinkApp extends ConsumerWidget {
       // Keep one coherent supported theme until every surface has a dark variant.
       themeMode: ThemeMode.light,
       routerConfig: router,
+      builder: (context, child) => investorPreview
+          ? InvestorPreviewFrame(
+              router: router,
+              child: child ?? const SizedBox.shrink(),
+            )
+          : child ?? const SizedBox.shrink(),
       debugShowCheckedModeBanner: false,
     );
   }

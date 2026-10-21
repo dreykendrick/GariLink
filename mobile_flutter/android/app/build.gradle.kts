@@ -27,6 +27,7 @@ val releaseSigningConfigured = listOf(
     releaseKeyAlias,
     releaseKeyPassword,
 ).all { it != null }
+val investorPreviewBuild = providers.gradleProperty("investorPreview").orNull == "true"
 
 android {
     namespace = "ke.co.garilink.garilink_mobile"
@@ -44,6 +45,9 @@ android {
 
     defaultConfig {
         applicationId = "ke.co.garilink.garilink_mobile"
+        if (investorPreviewBuild) applicationIdSuffix = ".investor"
+        manifestPlaceholders["authRedirectScheme"] =
+            if (investorPreviewBuild) "ke.co.garilink.garilink_mobile.investor" else "ke.co.garilink.garilink_mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

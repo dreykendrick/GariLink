@@ -35,6 +35,7 @@ import '../../features/owner/presentation/pages/menu_page.dart';
 import '../../features/owner/presentation/pages/create_listing_page.dart';
 import '../../features/owner/data/owner_draft_repository.dart';
 import 'placeholder_pages.dart';
+import 'booking_continuation.dart';
 import '../../features/authentication/presentation/pages/email_confirmation_page.dart';
 
 final goRouterRootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -42,7 +43,13 @@ final goRouterShellKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _RouterRefreshNotifier();
-  ref.listen<AuthState>(authStateProvider, (_, _) => refreshNotifier.refresh());
+  final continuation = ref.read(bookingContinuationProvider);
+  ref.listen<AuthState>(authStateProvider, (previous, next) {
+    if (previous?.user != null && previous?.user?.id != next.user?.id) {
+      continuation.clear();
+    }
+    refreshNotifier.refresh();
+  });
   ref.onDispose(refreshNotifier.dispose);
 
   final router = GoRouter(
@@ -95,13 +102,35 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/incoming-requests' ||
           location == '/menu';
 
-      if (!isAuthenticated && isProtectedRoute) return '/login';
+      if (!isAuthenticated && isProtectedRoute) {
+        if (location == '/booking') {
+          continuation.capture(state.uri);
+        } else {
+          continuation.clear();
+        }
+        return '/login';
+      }
+      if (!isAuthenticated &&
+          !loggingIn &&
+          location != '/confirm-email' &&
+          location != '/verify-phone') {
+        continuation.clear();
+      }
       if (isAuthenticated && isOwnerRoute && !_isOwner(authState.user)) {
         return '/home';
       }
       if (isAuthenticated && (loggingIn || location == '/verify-phone')) {
+        final listingId = continuation.consume();
+        if (listingId != null) {
+          ref.invalidate(listingDetailsProvider(listingId));
+          return Uri(
+            path: '/vehicle-details',
+            queryParameters: {'listingId': listingId, 'review': '1'},
+          ).toString();
+        }
         return '/home';
       }
+      if (isAuthenticated) continuation.clear();
       return null;
     },
     routes: [
@@ -181,6 +210,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             state,
             VehicleDetailsPageWrapper(
               listingId: listingId,
+              reviewAfterLogin: state.uri.queryParameters['review'] == '1',
               selection: state.extra is DiscoverySelection
                   ? state.extra as DiscoverySelection
                   : null,
@@ -692,14 +722,19 @@ class MenuWrapper extends ConsumerWidget {
 class VehicleDetailsPageWrapper extends StatelessWidget {
   final String listingId;
   final DiscoverySelection? selection;
+  final bool reviewAfterLogin;
   const VehicleDetailsPageWrapper({
     required this.listingId,
     this.selection,
+    this.reviewAfterLogin = false,
     super.key,
   });
   @override
-  Widget build(BuildContext context) =>
-      VehicleDetailsPage(listingId: listingId, selection: selection);
+  Widget build(BuildContext context) => VehicleDetailsPage(
+    listingId: listingId,
+    selection: selection,
+    reviewAfterLogin: reviewAfterLogin,
+  );
 }
 
 class BookingPageWrapper extends StatelessWidget {

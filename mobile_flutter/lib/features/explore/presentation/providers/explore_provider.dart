@@ -3,6 +3,11 @@ import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../domain/marketplace_query.dart';
 
+// Public search preferences survive tab page replacement, not app restarts.
+final exploreQueryProvider = StateProvider<MarketplaceQuery>(
+  (ref) => const MarketplaceQuery(type: 'FOR_HIRE'),
+);
+
 final marketplaceAuthenticatedProvider = Provider<bool>(
   (ref) =>
       ref.watch(authStateProvider.select((state) => state.isAuthenticated)),

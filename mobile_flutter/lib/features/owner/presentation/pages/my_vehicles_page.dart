@@ -14,6 +14,8 @@ import 'vehicle_media_page.dart';
 import '../../../../shared/widgets/vehicle_image.dart';
 import '../../../vehicle/domain/models/vehicle_v2.dart';
 import '../../../vehicle/domain/models/rental_pricing.dart';
+import '../../../verification/presentation/verification_action_preview.dart';
+import '../../../verification/domain/verification_requirement.dart';
 
 class MyVehiclesPage extends ConsumerStatefulWidget {
   const MyVehiclesPage({super.key});
@@ -175,6 +177,14 @@ class _MyVehiclesPageState extends ConsumerState<MyVehiclesPage> {
     final repository = ref.read(marketplaceRepositoryProvider);
     try {
       if (action == 'publish') {
+        if (await showVerificationActionPreview(
+          context,
+          ref,
+          VerificationJourney.vehiclePublication,
+        )) {
+          return;
+        }
+        if (!mounted) return;
         final photos = listing['mediaItems'] as List<dynamic>? ?? const [];
         final proceed =
             await showDialog<bool>(

@@ -35,7 +35,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="ke.co.garilink.garilink_mobile" android:host="auth" android:path="/auth/email-callback"/>
+                <data android:scheme="${authRedirectScheme}" android:host="auth" android:path="/auth/email-callback"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/preview/investor_preview.dart';
 import 'transport_need_form.dart';
 import 'rental_location_form.dart';
 import '../../../explore/domain/discovery_selection.dart';
@@ -15,6 +16,8 @@ import 'package:garilink_mobile/features/vehicle/domain/models/rental_pricing.da
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../trips/presentation/pages/transport_need_summary.dart';
 import '../../../trips/domain/models/transport_need.dart';
+import '../../../verification/presentation/verification_action_preview.dart';
+import '../../../verification/domain/verification_requirement.dart';
 
 class BookingPage extends ConsumerStatefulWidget {
   final DiscoverySelection? selection;
@@ -273,12 +276,21 @@ class _BookingPageState extends ConsumerState<BookingPage> {
               child: SizedBox.square(
                 dimension: 76,
                 child: widget.coverUrl?.isNotEmpty == true
-                    ? CachedNetworkImage(
-                        imageUrl: widget.coverUrl!,
-                        fit: BoxFit.cover,
-                        memCacheWidth: 240,
-                        errorWidget: (_, _, _) => const _VehicleFallback(),
-                      )
+                    ? investorPreview &&
+                              widget.coverUrl!.startsWith(
+                                'asset://assets/images/home/',
+                              )
+                          ? Image.asset(
+                              widget.coverUrl!.substring(8),
+                              fit: BoxFit.cover,
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: widget.coverUrl!,
+                              fit: BoxFit.cover,
+                              memCacheWidth: 240,
+                              errorWidget: (_, _, _) =>
+                                  const _VehicleFallback(),
+                            )
                     : const _VehicleFallback(),
               ),
             ),
@@ -782,6 +794,28 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                   }
                   setState(() => _submitting = true);
                   try {
+                    if (ref.read(verificationActionPreviewProvider)) {
+                      final preference = _transportNeed?.driverPreference;
+                      if (preference == null ||
+                          preference == DriverPreference.any) {
+                        scaffoldMessenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Choose self-drive or with-driver before reviewing verification.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      await showVerificationActionPreview(
+                        context,
+                        ref,
+                        preference == DriverPreference.selfDrive
+                            ? VerificationJourney.selfDrive
+                            : VerificationJourney.withDriver,
+                      );
+                      return;
+                    }
                     await ref
                         .read(rentalRepositoryProvider)
                         .createRentalRequest(
@@ -815,9 +849,15 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                           color: GariLinkColors.success,
                           size: 48,
                         ),
-                        title: const Text('Request sent'),
+                        title: Text(
+                          investorPreview
+                              ? 'Simulated request saved'
+                              : 'Request sent',
+                        ),
                         content: Text(
-                          'Your request for ${DateFormat('d MMM').format(startDate)} – ${DateFormat('d MMM y').format(endDate)} has been sent to the owner. It is not approved yet.',
+                          investorPreview
+                              ? 'Saved only on this device. Switch to Demo owner from the preview menu to review the same simulated request. No real booking was made.'
+                              : 'Your request for ${DateFormat('d MMM').format(startDate)} – ${DateFormat('d MMM y').format(endDate)} has been sent to the owner. It is not approved yet.',
                         ),
                         actions: [
                           FilledButton(

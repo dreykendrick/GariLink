@@ -1,0 +1,89 @@
+name: Emergency investor preview APK
+on:
+  # Explicitly authorized push to this isolated branch is the controlled trigger.
+  # No default-branch registration or PR #1 change is required.
+  push:
+    branches: [codex/investor-emergency-20261021]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: emergency-investor-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  android-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: mobile_flutter
+    env:
+      FLUTTER_VERSION: 3.41.7
+      GRADLE_USER_HOME: ${{ runner.temp }}/emergency-gradle
+      ORG_GRADLE_PROJECT_investorPreview: 'true'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify reviewed source inventory
+        run: |
+          set -euo pipefail
+          python3 tool/showcase_snapshot.py verify --expected-sha256 "$(sha256sum ../EMERGENCY_SOURCE_MANIFEST.json | cut -d' ' -f1)"
+      - name: Install fixed Flutter and Android toolchain
+        run: |
+          set -euo pipefail
+          curl -fLsS https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json -o "$RUNNER_TEMP/flutter-releases.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          d=json.loads(Path(os.environ['RUNNER_TEMP']+'/flutter-releases.json').read_text())
+          r=[x for x in d['releases'] if x['version']==os.environ['FLUTTER_VERSION'] and x['channel']=='stable' and x.get('dart_sdk_arch','x64')=='x64']
+          if len(r)!=1: raise SystemExit('Fixed Flutter release unavailable')
+          Path(os.environ['RUNNER_TEMP']+'/flutter-url').write_text(d['base_url']+'/'+r[0]['archive'])
+          Path(os.environ['RUNNER_TEMP']+'/flutter-checksum').write_text(r[0]['sha256']+'  flutter.tar.xz\n')
+          PY
+          pushd "$RUNNER_TEMP"
+          curl -fLsS "$(cat flutter-url)" -o flutter.tar.xz
+          sha256sum --check flutter-checksum
+          tar -xf flutter.tar.xz
+          popd
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+      - name: Resolve dependencies
+        run: |
+          set -euo pipefail
+          flutter --version
+          java -version
+          flutter pub get --enforce-lockfile
+      - name: Build earliest internal candidate (DEBUG SIGNED, NOT production)
+        run: |
+          set -euo pipefail
+          flutter build apk --debug --no-pub --build-name=1.0.0-investor --build-number=20261022 \
+            --dart-define=INVESTOR_PREVIEW=true --dart-define=APP_ENV=investor-local-preview \
+            --dart-define=API_BASE_URL=https://preview.example.invalid \
+            --dart-define=ENABLE_VERIFICATION_PREVIEW=false --dart-define=ENABLE_IDENTITY_PREPARATION=false
+          mkdir -p ../dist
+          cp build/app/outputs/flutter-apk/app-debug.apk "../dist/GariLink-Investor-Preview-${GITHUB_RUN_ID}.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs ../dist/*.apk > ../dist/signature.txt
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging ../dist/*.apk > ../dist/package.txt
+          grep -q "name='ke.co.garilink.garilink_mobile.investor' versionCode='20261022' versionName='1.0.0-investor'" ../dist/package.txt
+          unzip -l ../dist/*.apk > ../dist/assets.txt
+          for asset in garilink_home_hero category_cars category_suvs category_pickups; do grep -q "assets/flutter_assets/assets/images/home/$asset.jpg" ../dist/assets.txt; done
+          cp ../EMERGENCY_SOURCE_MANIFEST.json ../dist/
+          (cd ../dist && sha256sum *.apk > SHA256SUMS && stat --printf='%n %s bytes\n' *.apk > sizes.txt)
+          printf 'commit=%s\nrun=%s\nsigning=DEBUG_INTERNAL_ONLY\nbackend=LOCAL_SIMULATED\nphysical_qa=NOT_EXECUTED\nfull_regression=PENDING\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" > ../dist/provenance.txt
+      - name: Upload verified candidate immediately, before full regression
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: emergency-preview-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Analyzer and full Flutter regression (must pass for final readiness)
+        run: |
+          set -euo pipefail
+          flutter analyze --no-pub
+          flutter test --no-pub --reporter expanded

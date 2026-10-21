@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/colors.dart';
 import '../../core/theme/animations.dart';
+import '../../core/preview/investor_preview.dart';
 
 class VehicleImage extends StatelessWidget {
   const VehicleImage({
@@ -19,6 +20,13 @@ class VehicleImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = url?.trim() ?? '';
     if (value.isEmpty) return _Fallback(semanticLabel: semanticLabel);
+    if (investorPreview && value.startsWith('asset://assets/images/home/')) {
+      return Image.asset(
+        value.substring(8),
+        fit: fit,
+        semanticLabel: semanticLabel,
+      );
+    }
     return CachedNetworkImage(
       imageUrl: value,
       fit: fit,

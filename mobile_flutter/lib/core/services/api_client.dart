@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../errors/app_exception.dart';
 import 'storage_service.dart';
 import '../config/app_environment.dart';
+import '../preview/investor_preview.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final client = ApiClient(ref.watch(storageServiceProvider));
@@ -231,6 +232,15 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
+    if (investorPreview) {
+      return await InvestorPreviewStore.instance.request(
+            method,
+            path,
+            data,
+            queryParameters,
+          )
+          as T;
+    }
     try {
       final response = await _dio.request<T>(
         path,
