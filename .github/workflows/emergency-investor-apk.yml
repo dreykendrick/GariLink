@@ -20,7 +20,6 @@ jobs:
         working-directory: mobile_flutter
     env:
       FLUTTER_VERSION: 3.41.7
-      GRADLE_USER_HOME: ${{ runner.temp }}/emergency-gradle
       ORG_GRADLE_PROJECT_investorPreview: 'true'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -29,6 +28,7 @@ jobs:
       - name: Verify reviewed source inventory
         run: |
           set -euo pipefail
+          echo "GRADLE_USER_HOME=$RUNNER_TEMP/emergency-gradle" >> "$GITHUB_ENV"
           python3 tool/showcase_snapshot.py verify --expected-sha256 "$(sha256sum ../EMERGENCY_SOURCE_MANIFEST.json | cut -d' ' -f1)"
       - name: Install fixed Flutter and Android toolchain
         run: |
