@@ -4,6 +4,26 @@ import 'package:go_router/go_router.dart';
 import '../../features/authentication/presentation/providers/auth_provider.dart';
 import 'investor_preview.dart';
 
+/// MaterialApp.builder is above its Router/Navigator. Put application chrome
+/// inside a Navigator route so both Tooltips and popup routes have ancestors.
+/// The existing GoRouter remains responsible for marketplace navigation.
+class InvestorPreviewNavigator extends StatelessWidget {
+  const InvestorPreviewNavigator({
+    super.key,
+    required this.child,
+    required this.router,
+  });
+  final Widget child;
+  final GoRouter router;
+
+  @override
+  Widget build(BuildContext context) => Navigator(
+    onGenerateRoute: (_) => MaterialPageRoute<void>(
+      builder: (_) => InvestorPreviewFrame(router: router, child: child),
+    ),
+  );
+}
+
 class InvestorPreviewFrame extends ConsumerWidget {
   const InvestorPreviewFrame({
     super.key,

@@ -18,7 +18,7 @@ try {
     Invoke-Checked 'flutter' @('test','--no-pub')
   }
   $env:ORG_GRADLE_PROJECT_investorPreview = 'true'
-  Invoke-Checked 'flutter' @('build','apk','--debug','--no-pub','--build-name=1.0.0-investor','--build-number=20261022','--dart-define=INVESTOR_PREVIEW=true','--dart-define=ENABLE_VERIFICATION_PREVIEW=false','--dart-define=ENABLE_IDENTITY_PREPARATION=false','--dart-define=APP_ENV=investor-local-preview','--dart-define=API_BASE_URL=https://preview.example.invalid')
+  Invoke-Checked 'flutter' @('build','apk','--debug','--no-pub','--build-name=1.0.1-investor','--build-number=20261023','--dart-define=INVESTOR_PREVIEW=true','--dart-define=ENABLE_VERIFICATION_PREVIEW=false','--dart-define=ENABLE_IDENTITY_PREPARATION=false','--dart-define=APP_ENV=investor-local-preview','--dart-define=API_BASE_URL=https://preview.example.invalid')
   $previewApk = Join-Path $previewProject 'build/app/outputs/flutter-apk/app-debug.apk'
   if (-not (Test-Path -LiteralPath $previewApk)) { throw 'Flutter returned without an APK.' }
   $previewOutput = Join-Path (Split-Path -Parent $previewProject) ('GariLink-Investor-Preview-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.apk')

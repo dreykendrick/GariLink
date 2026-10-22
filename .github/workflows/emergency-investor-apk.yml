@@ -58,11 +58,15 @@ jobs:
           flutter --version
           java -version
           flutter pub get --enforce-lockfile
+      - name: Preview-enabled shell and onboarding gate before APK
+        run: |
+          set -euo pipefail
+          flutter test --no-pub --dart-define=INVESTOR_PREVIEW=true --reporter expanded test/investor_preview_navigation_test.dart test/widget_test.dart
       - name: Build earliest internal candidate (DEBUG SIGNED, NOT production)
         id: build
         run: |
           set -euo pipefail
-          flutter build apk --debug --no-pub --build-name=1.0.0-investor --build-number=20261022 \
+          flutter build apk --debug --no-pub --build-name=1.0.1-investor --build-number=20261023 \
             --dart-define=INVESTOR_PREVIEW=true --dart-define=APP_ENV=investor-local-preview \
             --dart-define=API_BASE_URL=https://preview.example.invalid \
             --dart-define=ENABLE_VERIFICATION_PREVIEW=false --dart-define=ENABLE_IDENTITY_PREPARATION=false
@@ -70,7 +74,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-debug.apk "../dist/GariLink-Investor-Preview-${GITHUB_RUN_ID}.apk"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs ../dist/*.apk > ../dist/signature.txt
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging ../dist/*.apk > ../dist/package.txt
-          grep -q "name='ke.co.garilink.garilink_mobile.investor' versionCode='20261022' versionName='1.0.0-investor'" ../dist/package.txt
+          grep -q "name='ke.co.garilink.garilink_mobile.investor' versionCode='20261023' versionName='1.0.1-investor'" ../dist/package.txt
           unzip -l ../dist/*.apk > ../dist/assets.txt
           for asset in garilink_home_hero category_cars category_suvs category_pickups; do grep -q "assets/flutter_assets/assets/images/home/$asset.jpg" ../dist/assets.txt; done
           cp ../EMERGENCY_SOURCE_MANIFEST.json ../dist/

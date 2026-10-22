@@ -58,7 +58,7 @@ class GariLinkApp extends ConsumerWidget {
       themeMode: ThemeMode.light,
       routerConfig: router,
       builder: (context, child) => investorPreview
-          ? InvestorPreviewFrame(
+          ? InvestorPreviewNavigator(
               router: router,
               child: child ?? const SizedBox.shrink(),
             )

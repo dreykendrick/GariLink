@@ -1,6 +1,6 @@
 {
   "files": {
-    ".github/workflows/emergency-investor-apk.yml": "59adfae89db35d4ed97952e9d0ce812bc0a24281897eb8f4ecf3cb2b4a764021",
+    ".github/workflows/emergency-investor-apk.yml": "3b5a8635a503269214ad653420b5def2bfed845852684973bbcee3ab6a04b1f6",
     "mobile_flutter/.metadata": "a3c8b44d05c755a0f81c9f4d78ccd341f41d9b458ab62cdf2b9db690f9ac9e06",
     "mobile_flutter/analysis_options.yaml": "e0ea485cfdbc3e12b93efb8679a5ea73ebfe20ea4ca0c473dc594fc2fb274ed5",
     "mobile_flutter/android/.gitignore": "b027c9de1011765c015e5819bf857c0d75bfcd0886fb01721c091159012e50f1",
@@ -41,7 +41,7 @@
     "mobile_flutter/lib/core/navigation/booking_continuation.dart": "f1cce974733e898dac98cb6122dfa0323dcc8717d22f1c0795bb3550755f1dbd",
     "mobile_flutter/lib/core/navigation/placeholder_pages.dart": "aaa55e0e956938d541ecd95e16e822ecab4ab302fcc123f4762b7430d82c108a",
     "mobile_flutter/lib/core/preview/investor_preview.dart": "e4f1bfd5f6bd39cb33e6e73acfe3db512bde36ca0f206b77e7fc2f532e3581fe",
-    "mobile_flutter/lib/core/preview/preview_banner.dart": "f953a4c00e0923fcb2de4dae3377d12f470a6f24f7d9b03870bc968655d58d89",
+    "mobile_flutter/lib/core/preview/preview_banner.dart": "6ee87284edf3cb71f3c2bcf7b03bf588e401a9d5ba444951688ae04d8f7d5997",
     "mobile_flutter/lib/core/services/api_client.dart": "3ae8b2e28d9965eb4ba1a2f3335b420d97ee0129dd4e60bdf008d02f2951d7d7",
     "mobile_flutter/lib/core/services/error_reporter.dart": "736b14db221535b4d2933555f149129ea8c51b26b795ef510f9c6f7df781953e",
     "mobile_flutter/lib/core/services/storage_service.dart": "70204c9f23b0089d4b0f76ebd08238f75700043935588d48f55d8e013f162752",
@@ -118,7 +118,7 @@
     "mobile_flutter/lib/features/verification/domain/verification_requirement.dart": "65c5c3a2566879d7d31a451efae909a78b99d4aa8dce2029cfc9de6b724cbd4b",
     "mobile_flutter/lib/features/verification/presentation/verification_action_preview.dart": "cb08d3b523d6b4bdd00541415670808a848928d1c2e178bd9b914740c350224c",
     "mobile_flutter/lib/features/verification/presentation/verification_checklist.dart": "1820f51048ac30a44ee3d5201429f5c46a76c92eaec189bf23101743870211c2",
-    "mobile_flutter/lib/main.dart": "758753962637503f526459124afef1f82d7065fe3046fdc049bd1b7260ca080c",
+    "mobile_flutter/lib/main.dart": "353e528e7bcd311aa3d5efd9d1b1c3ecf7311395a64f805e87c3074214f3a34e",
     "mobile_flutter/lib/shared/widgets/app_button.dart": "c1acadc7db9fc6e2176dd34db15611958c15b80b55928cc51465bdcea088cd19",
     "mobile_flutter/lib/shared/widgets/app_card.dart": "c329819e4675621523c065892d089264688ea83864bbaadd0a0befdc41695b0d",
     "mobile_flutter/lib/shared/widgets/app_loading.dart": "3165bb0813770f7f6a7bf0b781f28c4c6dd9bc69d291de1123cb78664170e446",
@@ -148,6 +148,7 @@
     "mobile_flutter/test/design_system_test.dart": "46e8b27becfc9882994d34ca62cca4b725e9dc0a4cce65c103d14b44c95e7d0b",
     "mobile_flutter/test/email_auth_test.dart": "b4a38791fd398be69e99e7696e22abf8392d8a3eb139ad4b176a7449bf779c5b",
     "mobile_flutter/test/home_redesign_test.dart": "1f1f297b7fd8c46d4ad71b4c262c2d11f3298fb93ccd744f13463f3fd0eaefff",
+    "mobile_flutter/test/investor_preview_navigation_test.dart": "8b98f6f10a218cff27a5b488e7b709c3fc8345d7313cf3f435416abc477da7bb",
     "mobile_flutter/test/investor_preview_test.dart": "bc56089619896f98c899e1e617a7e279449f554842e3e3026dcca9549afc7a43",
     "mobile_flutter/test/location_model_test.dart": "04e2b04ffef93e613bbe0d6b1fab0114ea6f3a00fee04d0beb3a643fff1367d5",
     "mobile_flutter/test/marketplace_showcase_test.dart": "7af5f5b38b256ac21b0a62f1e8930e8b4ef98b332162853c02c9f2aaf975dbe9",
@@ -174,7 +175,7 @@
     "mobile_flutter/test/verification_decision_test.dart": "d7bc091185e33fafa3d051a891abfe4d520be85075bcb62307dee719a0e96aca",
     "mobile_flutter/test/widget_test.dart": "e2e16170a7e21cf7ca68298e40e8710b61063158d65249b9c480f5daad172ec3",
     "mobile_flutter/tool/build_android.ps1": "7224236ec3fd0a8a851a6b8b062fdb6aa91d51dd2c24d957521b23cc43e93dd9",
-    "mobile_flutter/tool/build_investor_preview.ps1": "88f88daba237dff6b861e20327410ebfffe16f10e1b9471f217a90660e3807da",
+    "mobile_flutter/tool/build_investor_preview.ps1": "504d9e989c4cb3cbb20f389296fba39801e4780545cfc9b68e47576c505d668e",
     "mobile_flutter/tool/showcase_snapshot.py": "274e5c81ca219128a1c57769a346da0c952cf8ccf7df1f35ed2c7bfe81a35e6f",
     "mobile_flutter/tool/test_showcase_snapshot.py": "762e9b933fe440f81ae3a95b3474dbf598fb27f2669b51746d87649582e16ec3"
   },
