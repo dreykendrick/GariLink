@@ -26,6 +26,65 @@ Map<String, dynamic> listing({
 };
 
 void main() {
+  testWidgets('search and filters survive Explore page replacement', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        searchListingsProvider.overrideWith((ref, query) async => []),
+        savedListingsProvider.overrideWith((ref) async => []),
+        marketplaceAuthenticatedProvider.overrideWithValue(false),
+      ],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(exploreQueryProvider.notifier)
+        .state = const MarketplaceQuery(
+      type: 'FOR_HIRE',
+      text: 'Toyota',
+      transmission: 'AUTOMATIC',
+      sort: MarketplaceSort.priceLow,
+    );
+    Widget screen(bool show) => UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(home: show ? const ExplorePage() : const SizedBox()),
+    );
+    await tester.pumpWidget(screen(true));
+    await tester.pump();
+    expect(find.text('Toyota'), findsWidgets);
+    await tester.pumpWidget(screen(false));
+    await tester.pumpWidget(screen(true));
+    await tester.pump();
+    expect(find.text('Toyota'), findsWidgets);
+    expect(container.read(exploreQueryProvider).transmission, 'AUTOMATIC');
+    expect(container.read(exploreQueryProvider).sort, MarketplaceSort.priceLow);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('typing survives navigation before search debounce finishes', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        searchListingsProvider.overrideWith((ref, query) async => []),
+        savedListingsProvider.overrideWith((ref) async => []),
+        marketplaceAuthenticatedProvider.overrideWithValue(false),
+      ],
+    );
+    addTearDown(container.dispose);
+    Widget screen(bool show) => UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(home: show ? const ExplorePage() : const SizedBox()),
+    );
+    await tester.pumpWidget(screen(true));
+    await tester.pump();
+    await tester.enterText(find.byType(SearchBar), 'Prado');
+    await tester.pumpWidget(screen(false));
+    await tester.pumpWidget(screen(true));
+    await tester.pump();
+    expect(find.text('Prado'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
   test('formats Tanzanian marketplace prices and mileage consistently', () {
     expect(formatMarketplacePrice(48500000), 'TZS 48,500,000');
     expect(formatMarketplacePrice('80000'), 'TZS 80,000');

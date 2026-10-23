@@ -109,6 +109,35 @@ Future<void> render(
 }
 
 void main() {
+  for (final width in [320.0, 360.0, 390.0, 430.0, 600.0]) {
+    testWidgets('specifications fit $width at 200 percent text', (
+      tester,
+    ) async {
+      await render(
+        tester,
+        width: width,
+        textScale: 2,
+        data: detail(
+          capabilities: {
+            'schema_version': 1,
+            'passenger_capacity': 7,
+            'with_driver': true,
+            'self_drive': true,
+            'long_distance': true,
+            'transmission': 'AUTOMATIC',
+            'fuel_type': 'DIESEL',
+          },
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Vehicle specifications'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets('passenger arrival explains authoritative fit and pricing', (
     tester,
   ) async {

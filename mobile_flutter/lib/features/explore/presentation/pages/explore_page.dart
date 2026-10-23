@@ -485,7 +485,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     super.initState();
     if (widget.initialIntent != null) {
       _query = const MarketplaceQuery(type: 'FOR_HIRE');
+    } else {
+      _query = ref.read(exploreQueryProvider);
     }
+    _search.text = _query.text;
   }
 
   @override
@@ -500,9 +503,18 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 
   void _onSearch(String value) {
     _debounce?.cancel();
+    // Preserve typing even when a tab change happens before debounce finishes.
+    ref.read(exploreQueryProvider.notifier).state = _query.copyWith(
+      text: value.trim(),
+    );
     _debounce = Timer(marketplaceSearchDebounce, () {
-      if (mounted) setState(() => _query = _query.copyWith(text: value.trim()));
+      if (mounted) _setQuery(_query.copyWith(text: value.trim()));
     });
+  }
+
+  void _setQuery(MarketplaceQuery value) {
+    ref.read(exploreQueryProvider.notifier).state = value;
+    setState(() => _query = value);
   }
 
   Future<void> _toggleSaved(String id, bool currentlySaved) async {
@@ -540,7 +552,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
       useSafeArea: true,
       builder: (_) => _FilterSheet(initial: _query),
     );
-    if (result != null && mounted) setState(() => _query = result);
+    if (result != null && mounted) _setQuery(result);
   }
 
   Future<void> _openSort() async {
@@ -574,7 +586,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
       ),
     );
     if (result != null && mounted) {
-      setState(() => _query = _query.copyWith(sort: result));
+      _setQuery(_query.copyWith(sort: result));
     }
   }
 
@@ -627,7 +639,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                           onPressed: () {
                             _debounce?.cancel();
                             _search.clear();
-                            setState(() => _query = _query.copyWith(text: ''));
+                            _debounce?.cancel();
+                            _setQuery(_query.copyWith(text: ''));
                           },
                           icon: const Icon(Icons.close_rounded),
                         ),
@@ -657,10 +670,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
               ),
               if (_query.hasFilters)
                 SliverToBoxAdapter(
-                  child: _ActiveFilters(
-                    query: _query,
-                    onChanged: (value) => setState(() => _query = value),
-                  ),
+                  child: _ActiveFilters(query: _query, onChanged: _setQuery),
                 ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
@@ -718,9 +728,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
                         : null,
                     onAction: () {
                       _search.clear();
-                      setState(
-                        () => _query = const MarketplaceQuery(type: 'FOR_HIRE'),
-                      );
+                      _debounce?.cancel();
+                      _setQuery(const MarketplaceQuery(type: 'FOR_HIRE'));
                     },
                   ),
                 )

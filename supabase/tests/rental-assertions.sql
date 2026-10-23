@@ -20,8 +20,8 @@ update public.gl_vehicles v set
   operational_availability='BUSY'
 where v.id=(select l.vehicle_id from public.gl_listings l where l.id=current_setting('test.rental.id')::uuid);
 set local role authenticated;
-select pg_temp.assert_true(current_user='authenticated' and auth.uid()='22222222-2222-4222-8222-222222222222'::uuid
-  and auth.jwt()->>'session_id'='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','renter role and claims restored after BUSY fixture');
+select pg_temp.assert_true(pg_temp.request_actor_matches('22222222-2222-4222-8222-222222222222',
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),'renter role and claims restored after BUSY fixture');
 do $$ begin
   begin update public.gl_vehicles set operational_availability='AVAILABLE';
     raise exception 'Expected direct vehicle write denied'; exception when insufficient_privilege then null; end;
@@ -41,8 +41,8 @@ select pg_temp.assert_true(current_user=session_user,'AVAILABLE fixture uses tes
 update public.gl_vehicles v set operational_availability='AVAILABLE'
 where v.id=(select l.vehicle_id from public.gl_listings l where l.id=current_setting('test.rental.id')::uuid);
 set local role authenticated;
-select pg_temp.assert_true(current_user='authenticated' and auth.uid()='22222222-2222-4222-8222-222222222222'::uuid
-  and auth.jwt()->>'session_id'='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','renter role and claims restored after AVAILABLE fixture');
+select pg_temp.assert_true(pg_temp.request_actor_matches('22222222-2222-4222-8222-222222222222',
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),'renter role and claims restored after AVAILABLE fixture');
 do $$ begin
   begin perform public.garilink_create_rental(jsonb_build_object(
     'listingId',current_setting('test.rental.id'),'requestId','55555555-5555-4555-8555-555555555555',

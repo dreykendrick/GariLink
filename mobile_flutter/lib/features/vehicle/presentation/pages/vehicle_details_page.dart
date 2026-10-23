@@ -27,9 +27,11 @@ class VehicleDetailsPage extends ConsumerWidget {
     super.key,
     required this.listingId,
     this.selection,
+    this.reviewAfterLogin = false,
   });
   final String listingId;
   final DiscoverySelection? selection;
+  final bool reviewAfterLogin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,6 +59,7 @@ class VehicleDetailsPage extends ConsumerWidget {
           ),
           data: (data) => _ListingDetails(
             listing: data,
+            reviewAfterLogin: reviewAfterLogin,
             selection: selection?.listingId == listingId ? selection : null,
           ),
         );
@@ -64,9 +67,14 @@ class VehicleDetailsPage extends ConsumerWidget {
 }
 
 class _ListingDetails extends StatelessWidget {
-  const _ListingDetails({required this.listing, this.selection});
+  const _ListingDetails({
+    required this.listing,
+    this.selection,
+    this.reviewAfterLogin = false,
+  });
   final Map<String, dynamic> listing;
   final DiscoverySelection? selection;
+  final bool reviewAfterLogin;
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +136,23 @@ class _ListingDetails extends StatelessWidget {
       ),
       body: CustomScrollView(
         slivers: [
+          if (reviewAfterLogin)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Review the current vehicle details, availability and pricing before requesting. Your request has not been submitted.',
+                ),
+              ),
+            ),
           SliverAppBar(
+            leading: reviewAfterLogin
+                ? IconButton(
+                    tooltip: 'Back to Explore',
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => context.go('/explore'),
+                  )
+                : null,
             expandedHeight: 300,
             pinned: true,
             foregroundColor: Colors.white,
@@ -388,39 +412,74 @@ class _SpecificationGrid extends StatelessWidget {
   final List<(String, String)> facts;
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: facts.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: constraints.maxWidth >= 520 ? 3 : 2,
-        mainAxisExtent: 82,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemBuilder: (_, index) => _Panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+    builder: (context, constraints) {
+      if (MediaQuery.textScalerOf(context).scale(14) > 18) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              facts[index].$1,
-              style: const TextStyle(
-                color: GariLinkColors.textMuted,
-                fontSize: 12,
+            for (final fact in facts)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _Panel(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fact.$1,
+                        style: const TextStyle(
+                          color: GariLinkColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        fact.$2,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              facts[index].$2,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
           ],
+        );
+      }
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: facts.length,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: constraints.maxWidth >= 520 ? 3 : 2,
+          mainAxisExtent:
+              82 *
+              (MediaQuery.textScalerOf(context).scale(14) / 14).clamp(1, 3),
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
         ),
-      ),
-    ),
+        itemBuilder: (_, index) => _Panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                facts[index].$1,
+                style: const TextStyle(
+                  color: GariLinkColors.textMuted,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                facts[index].$2,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
   );
 }
 

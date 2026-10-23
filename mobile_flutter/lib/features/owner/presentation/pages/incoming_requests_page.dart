@@ -40,11 +40,11 @@ class _IncomingRequestsPageState extends ConsumerState<IncomingRequestsPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    ref.invalidate(operatorWorkspaceContextProvider);
     final workspaceId = ref
         .read(operatorWorkspaceContextProvider)
         .valueOrNull
         ?.selectedId;
+    ref.invalidate(operatorWorkspaceContextProvider);
     if (workspaceId != null) {
       ref.invalidate(workspaceRentalsProvider(workspaceId));
     }

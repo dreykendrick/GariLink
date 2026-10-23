@@ -15,6 +15,8 @@ import 'package:garilink_mobile/features/vehicle/domain/models/rental_pricing.da
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../trips/presentation/pages/transport_need_summary.dart';
 import '../../../trips/domain/models/transport_need.dart';
+import '../../../verification/presentation/verification_action_preview.dart';
+import '../../../verification/domain/verification_requirement.dart';
 
 class BookingPage extends ConsumerStatefulWidget {
   final DiscoverySelection? selection;
@@ -782,6 +784,28 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                   }
                   setState(() => _submitting = true);
                   try {
+                    if (ref.read(verificationActionPreviewProvider)) {
+                      final preference = _transportNeed?.driverPreference;
+                      if (preference == null ||
+                          preference == DriverPreference.any) {
+                        scaffoldMessenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Choose self-drive or with-driver before reviewing verification.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      await showVerificationActionPreview(
+                        context,
+                        ref,
+                        preference == DriverPreference.selfDrive
+                            ? VerificationJourney.selfDrive
+                            : VerificationJourney.withDriver,
+                      );
+                      return;
+                    }
                     await ref
                         .read(rentalRepositoryProvider)
                         .createRentalRequest(

@@ -9,6 +9,7 @@ import '../../../../shared/widgets/auth_content.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/navigation/booking_continuation.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -36,9 +37,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       await ref
           .read(authStateProvider.notifier)
           .login(_identifierController.text.trim(), _passwordController.text);
-      if (mounted) {
-        context.go('/home');
-      }
+      // The router owns success navigation, including interrupted journeys.
     } catch (e) {
       if (mounted) {
         final message = userFacingError(e);
@@ -76,7 +75,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             Icons.arrow_back,
             color: isDark ? Colors.white : GariLinkColors.textPrimary,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            ref.read(bookingContinuationProvider).clear();
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
       ),
       body: SafeArea(

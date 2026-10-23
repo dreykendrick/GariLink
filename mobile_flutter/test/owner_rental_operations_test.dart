@@ -14,6 +14,63 @@ import 'package:garilink_mobile/features/trips/presentation/providers/trips_prov
 import 'package:garilink_mobile/features/vehicle/domain/models/rental_pricing.dart';
 
 void main() {
+  for (final width in [320.0, 360.0, 390.0, 430.0, 600.0]) {
+    testWidgets('populated owner queue fits $width at 200 percent text', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(_inbox(rentals: [_sample()], textScale: 2));
+      await tester.pumpAndSettle();
+      expect(find.text('Toyota Land Cruiser'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  }
+  for (final width in [320.0, 360.0, 390.0, 430.0, 600.0]) {
+    testWidgets('owner queue fits $width at actual 200 percent text', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(_inbox(rentals: const [], textScale: 2));
+      await tester.pumpAndSettle();
+      expect(find.text('No requests need attention'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets('resume refreshes requests for the selected owner workspace', (
+    tester,
+  ) async {
+    var loads = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          operatorWorkspaceContextProvider.overrideWith(
+            (ref) async => const OperatorWorkspaceContext(
+              available: [_workspace],
+              selected: _workspace,
+            ),
+          ),
+          workspaceRentalsProvider('workspace').overrideWith((ref) async {
+            loads++;
+            return [];
+          }),
+        ],
+        child: const MaterialApp(home: IncomingRequestsPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final before = loads;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(loads, greaterThan(before));
+    expect(tester.takeException(), isNull);
+  });
   const expected = {
     'REQUESTED': OwnerRentalQueueGroup.needsAttention,
     'UNDER_REVIEW': OwnerRentalQueueGroup.needsAttention,
@@ -279,7 +336,11 @@ const _workspace = OperatorWorkspace(
   businessMode: WorkspaceBusinessMode.fleet,
 );
 
-Widget _inbox({List<RentalSummary>? rentals, Object? error}) => ProviderScope(
+Widget _inbox({
+  List<RentalSummary>? rentals,
+  Object? error,
+  double textScale = 1,
+}) => ProviderScope(
   overrides: [
     operatorWorkspaceContextProvider.overrideWith(
       (ref) async => const OperatorWorkspaceContext(
@@ -292,7 +353,12 @@ Widget _inbox({List<RentalSummary>? rentals, Object? error}) => ProviderScope(
       return rentals ?? const [];
     }),
   ],
-  child: const MaterialApp(home: IncomingRequestsPage()),
+  child: MaterialApp(
+    home: MediaQuery(
+      data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+      child: const IncomingRequestsPage(),
+    ),
+  ),
 );
 
 RentalSummary _sample({
