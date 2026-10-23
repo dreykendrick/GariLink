@@ -1,0 +1,41 @@
+{
+  "review": "Sprint 3.8A proposed second controlled CI batch; NOT committed or pushed",
+  "branch": "codex/identity-evidence-certification-20261023",
+  "parentCommit": "63e90be14e64fc2d58d817904245f00e43f1187e",
+  "previousRun": "https://github.com/dreykendrick/GariLink/actions/runs/39923510468",
+  "historicalManifest": {
+    "path": "GARILINK_SPRINT_3_7C_REVIEW_MANIFEST.json",
+    "sha256": "15b57a651ce38a6468a0cc020e1e1ca943346d4c42ee81c434e9552fe8eba317",
+    "unchanged": true
+  },
+  "commitScope": [
+    ".github/workflows/identity-evidence-certification.yml",
+    "supabase/identity-worker/storage.ts",
+    "supabase/tests/identity-infrastructure.test.ts",
+    "GARILINK_SPRINT_3_8A_CORRECTION_MANIFEST.json"
+  ],
+  "hashSemantics": "SHA-256 of UTF-8 source bytes; these three files currently use LF and equal canonical Git content. Manifest excludes its own recursive hash; reverify before publication.",
+  "files": [
+    {
+      "path": ".github/workflows/identity-evidence-certification.yml",
+      "bytes": 3719,
+      "sha256": "626f11a29f4edee11ccbf7581dcbd08a1f6cfda8972a1a0f8d94a491e90150a1",
+      "change": "Only pglast installation pin 7.10 to 7.21; no permission, target, action or dependency changes otherwise."
+    },
+    {
+      "path": "supabase/identity-worker/storage.ts",
+      "bytes": 3587,
+      "sha256": "70d566d8c3f5aeec4c9b0200e8324d7e2aeea5517bc69f267dc7bfbd162e55df",
+      "change": "Failed-read diagnostics expose only static stage, HTTP status and allowlisted code; no provider message, private path, token or retry. Not a proven sealed-read root-cause fix."
+    },
+    {
+      "path": "supabase/tests/identity-infrastructure.test.ts",
+      "bytes": 9740,
+      "sha256": "76e81499dee5fe84aafa2ad47e3499ec80f6b20bd871c70ae153cfa68ccde9d6",
+      "change": "One additional test exercises four diagnostic cases: sealed 404, quarantine 403, unsafe code 401 and non-JSON 500; exact safe message and no retry."
+    }
+  ],
+  "localRegression": {"passed": 174, "failed": 0, "skipped": 0, "exitCode": 0},
+  "secondRemoteRun": "NOT EXECUTED; separate explicit commit/push authorization required",
+  "excluded": ["historical manifest", "reports", "ci-evidence", "virtual environment", "all original product worktrees", "PR #1", "hosted Supabase"]
+}

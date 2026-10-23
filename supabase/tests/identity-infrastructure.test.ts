@@ -35,6 +35,22 @@ test('private Storage adapter refuses service role and creates without upsert',a
   assert.equal(calls,1);
   await assert.rejects(()=>store.read('verification-sealed','../escape',new AbortController().signal),/INVALID_STORAGE/);
 });
+test('Storage failure diagnostics retain status/code without leaking provider details',async()=>{
+  for(const fixture of [
+    {bucket:'verification-sealed',stage:'sealed-read',status:404,detail:{code:'NoSuchKey',message:'private path and sensitive provider details'},code:'NoSuchKey'},
+    {bucket:'verification-private',stage:'quarantine-read',status:403,detail:{error:'AccessDenied',message:'synthetic-secret-token'},code:'AccessDenied'},
+    {bucket:'verification-sealed',stage:'sealed-read',status:401,detail:{code:'private/path/synthetic-secret-token',message:'applicant identity'},code:'UNSPECIFIED'},
+    {bucket:'verification-sealed',stage:'sealed-read',status:500,detail:'sensitive non-JSON provider response',code:'UNSPECIFIED'},
+  ]){
+    let calls=0;
+    const store=new PrivateEvidenceStorage('https://project.supabase.co','public',scoped('garilink_evidence_sealer'),async()=>{
+      calls++;return typeof fixture.detail==='string'?new Response(fixture.detail,{status:fixture.status}):Response.json(fixture.detail,{status:fixture.status});
+    });
+    await assert.rejects(()=>store.read(fixture.bucket,'document/1/digest.png',new AbortController().signal),
+      error=>error instanceof Error && error.message===`STORAGE_READ_REJECTED stage=${fixture.stage} status=${fixture.status} code=${fixture.code}`);
+    assert.equal(calls,1,'diagnostics must not retry Storage operations');
+  }
+});
 test('ClamAV adapter rejects TCP configuration and missing daemon without CLEAN fallback',async()=>{
   assert.throws(()=>createClamAvScanner('127.0.0.1:3310',60000),/CONFIGURATION/);
   const scanner=createClamAvScanner(`/tmp/garilink-no-daemon-${crypto.randomUUID()}.sock`,60000);

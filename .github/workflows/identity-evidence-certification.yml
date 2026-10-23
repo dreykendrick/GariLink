@@ -38,7 +38,7 @@ jobs:
       - name: Local API and static regression
         working-directory: supabase
         run: |
-          python -m pip install pglast==7.10
+          python -m pip install pglast==7.21
           npm ci
           npm test
   supabase-platform:

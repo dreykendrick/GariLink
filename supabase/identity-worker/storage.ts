@@ -32,7 +32,17 @@ export class PrivateEvidenceStorage {
     const url=this.url(bucket,path);url.pathname=url.pathname.replace('/object/','/object/authenticated/');
     const response=await this.transport(url,{redirect:'error',signal,
       headers:{apikey:this.apiKey,Authorization:`Bearer ${this.token}`}});
-    if(!response.ok || !response.body){await response.body?.cancel();throw new Error('STORAGE_READ_REJECTED');}
+    if(!response.ok || !response.body){
+      // Preserve status + a bounded machine code, never provider messages,
+      // object paths, document bytes, tokens or credentials.
+      const detail=await response.json().catch(()=>null);
+      const candidate=detail?.code??detail?.error;
+      const safeCodes=new Set(['NoSuchKey','NoSuchBucket','AccessDenied','Unauthorized','InvalidJWT',
+        'InvalidSignature','SignatureDoesNotMatch','InvalidKey','StorageBackendError','DatabaseError','42501']);
+      const code=typeof candidate==='string' && safeCodes.has(candidate)?candidate:'UNSPECIFIED';
+      const stage=bucket==='verification-sealed'?'sealed-read':'quarantine-read';
+      throw new Error(`STORAGE_READ_REJECTED stage=${stage} status=${response.status} code=${code}`);
+    }
     const reader=response.body.getReader();const chunks:Uint8Array[]=[];let size=0;
     try {
       while(true){const next=await reader.read();if(next.done)break;
