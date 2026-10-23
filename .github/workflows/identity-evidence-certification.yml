@@ -1,0 +1,88 @@
+name: Isolated identity evidence certification
+on:
+  push:
+    branches: ['codex/identity-evidence-certification-20261023']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-logic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5@sha256:01a6a70e41e6c4467c8f55f6063555ed72db2d6662cd0d571040d42eadaeb6f6
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.20.0'
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - env:
+          PGPASSWORD: disposable-ci-only
+        run: psql -X -w -h 127.0.0.1 -p 5433 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE garilink_dev TEMPLATE template0;'
+      - name: Replay canonical chain and original plus identity SQL suites
+        env:
+          GARILINK_DISPOSABLE_SQL: 'true'
+          PGPASSWORD: disposable-ci-only
+        run: node supabase/tests/run-ci-sql.mjs
+      - name: Local API and static regression
+        working-directory: supabase
+        run: |
+          python -m pip install pglast==7.10
+          npm ci
+          npm test
+  supabase-platform:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.20.0'
+      - name: Start and replay disposable Supabase
+        run: |
+          npx --yes supabase@2.114.0 start
+          npx --yes supabase@2.114.0 db reset --local --no-seed
+      - name: Retain closed-foundation platform checks before test-only activation
+        env:
+          PGPASSWORD: postgres
+          GARILINK_DISPOSABLE_KYC: 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client clamav clamav-daemon
+          psql -X -w -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/platform-smoke.sql
+          node supabase/tests/platform-health.mjs
+          psql -X -w -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/platform-verification.sql
+          node supabase/tests/platform-verification.mjs
+      - name: Start private actual ClamAV scanner with fresh signatures
+        run: |
+          sudo systemctl stop clamav-freshclam.service || true
+          sudo freshclam --stdout
+          mkdir -m 700 /tmp/garilink-clamd
+          clamd --config-file=supabase/tests/clamd-disposable.conf &
+          for attempt in $(seq 1 60); do
+            test ! -S /tmp/garilink-clamd/clamd.sock || break
+            sleep 2
+          done
+          test -S /tmp/garilink-clamd/clamd.sock
+      - name: Actual synthetic evidence Auth Storage scanner SQL and reviewer flow
+        env:
+          GARILINK_DISPOSABLE_IDENTITY: 'true'
+          GARILINK_CLAMD_SOCKET: /tmp/garilink-clamd/clamd.sock
+        run: |
+          npm ci --prefix supabase
+          node --experimental-strip-types supabase/tests/platform-identity-evidence.ts
+      - name: Destroy disposable services including retained immutable test histories
+        if: always()
+        run: npx --yes supabase@2.114.0 stop --no-backup

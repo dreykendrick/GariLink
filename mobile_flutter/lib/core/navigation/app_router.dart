@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../features/verification/data/identity_repository.dart';
+import '../../features/verification/presentation/identity_preparation_page.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -81,6 +83,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isProtectedRoute =
           location == '/trips' ||
           location == '/profile' ||
+          location == '/identity-verification' ||
           location == '/verify-phone' ||
           location == '/booking' ||
           location == '/saved-vehicles' ||
@@ -105,6 +108,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      if (identityPreparationEnabled)
+        GoRoute(
+          path: '/identity-verification',
+          parentNavigatorKey: goRouterRootKey,
+          builder: (context, state) => const IdentityPreparationPage(),
+        ),
       GoRoute(
         path: '/confirm-email',
         parentNavigatorKey: goRouterRootKey,

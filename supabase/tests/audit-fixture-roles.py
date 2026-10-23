@@ -9,7 +9,7 @@ from pglast.parser import parse_sql_json
 root = Path(__file__).resolve().parent
 role = 'administrator'
 errors, mutations = [], []
-for name in ['identity', 'workspace', 'marketplace', 'rental', 'pricing', 'media', 'email-auth', 'verification-closed']:
+for name in ['identity', 'workspace', 'marketplace', 'rental', 'pricing', 'media', 'email-auth', 'verification-closed', 'identity-preparation', 'identity-lifecycle', 'identity-evidence', 'identity-infrastructure']:
     tree = json.loads(parse_sql_json((root / f'{name}-assertions.sql').read_text()))
     for raw in tree['stmts']:
         stmt = raw['stmt']

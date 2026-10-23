@@ -1,0 +1,214 @@
+{
+  "baseCommit": "bc908897d89d55017d27c16e66e478c5b37e71fe",
+  "proposedBranch": "codex/identity-evidence-certification-20261023",
+  "migrationCount": 38,
+  "sourceFileCount": 41,
+  "credentialPatternMatches": [],
+  "files": [
+    {
+      "path": ".github/workflows/identity-evidence-certification.yml",
+      "bytes": 3719,
+      "sha256": "711951f906f7ef500065a920ed7b94909948fed9f9cd7aefab37fab22d2099b7"
+    },
+    {
+      "path": "mobile_flutter/lib/core/navigation/app_router.dart",
+      "bytes": 26103,
+      "sha256": "a6a02ef5e75e578de424eb30fb5b3feaae05db4cdf01286aeddf0e9e920fb422"
+    },
+    {
+      "path": "mobile_flutter/lib/features/profile/presentation/pages/profile_page.dart",
+      "bytes": 11459,
+      "sha256": "84fca00bf42837bf5057fa74df7ef2880ca28e62594eea20c815f6b807031a8b"
+    },
+    {
+      "path": "mobile_flutter/lib/features/verification/data/identity_repository.dart",
+      "bytes": 2964,
+      "sha256": "4084a0e1ba28beaa5b05ad8e5fc4497964f2668f4e5f26a1e7fd1a8060e3286b"
+    },
+    {
+      "path": "mobile_flutter/lib/features/verification/domain/verification_decision.dart",
+      "bytes": 1988,
+      "sha256": "fde5474ba1ba13bbe97cf07f253a8ce25becd83ec9102fa36c47067b1b5a8099"
+    },
+    {
+      "path": "mobile_flutter/lib/features/verification/domain/verification_requirement.dart",
+      "bytes": 1439,
+      "sha256": "65c5c3a2566879d7d31a451efae909a78b99d4aa8dce2029cfc9de6b724cbd4b"
+    },
+    {
+      "path": "mobile_flutter/lib/features/verification/presentation/identity_preparation_page.dart",
+      "bytes": 6068,
+      "sha256": "9aef718648fda7235afae825fcaab3f9e5dd1bd1bb3ab9875b5398f246da528a"
+    },
+    {
+      "path": "mobile_flutter/lib/features/verification/presentation/verification_action_preview.dart",
+      "bytes": 1781,
+      "sha256": "cb08d3b523d6b4bdd00541415670808a848928d1c2e178bd9b914740c350224c"
+    },
+    {
+      "path": "mobile_flutter/lib/features/verification/presentation/verification_checklist.dart",
+      "bytes": 1536,
+      "sha256": "ca7740b8eb0d3b2ee25a9e1e38b8181adf48cdc48d6a6192eab4da338fe70842"
+    },
+    {
+      "path": "mobile_flutter/test/identity_preparation_test.dart",
+      "bytes": 4770,
+      "sha256": "b91b91f1868b4c5f0f775da9b0bfc72cb4c5fa8c29758248100fad2081c8cbd3"
+    },
+    {
+      "path": "mobile_flutter/test/verification_checklist_test.dart",
+      "bytes": 3927,
+      "sha256": "504c288af614ecc7c303bed4f6fc12bd2ea3b211f100e6eb605ed410c5ead29d"
+    },
+    {
+      "path": "mobile_flutter/test/verification_decision_test.dart",
+      "bytes": 2599,
+      "sha256": "d7bc091185e33fafa3d051a891abfe4d520be85075bcb62307dee719a0e96aca"
+    },
+    {
+      "path": "supabase/functions/garilink-api/handler.ts",
+      "bytes": 46472,
+      "sha256": "773a723625665b56da2ce9da148755461817e6ba0e81f970efbb4a222a71c6b9"
+    },
+    {
+      "path": "supabase/functions/garilink-api/identity_evidence_processor.ts",
+      "bytes": 3185,
+      "sha256": "99865c2e64ca1fb32a91ee4443d2f1105a2ab56171597f4da326787e64a177e4"
+    },
+    {
+      "path": "supabase/functions/garilink-api/identity_evidence_worker.ts",
+      "bytes": 5490,
+      "sha256": "e4f7b3927b66083037bade8fee28ca09f259e30b7ae9b5548ec77f100760f69d"
+    },
+    {
+      "path": "supabase/functions/garilink-api/index.ts",
+      "bytes": 780,
+      "sha256": "42735cd4643b7f7c7e52999e6d719a3b2f280828509268e66874bf8de78266d8"
+    },
+    {
+      "path": "supabase/identity-worker/clamav.ts",
+      "bytes": 2912,
+      "sha256": "44c1b04493718e0fd7c66000de66d2321018a8bc3c13640fd2f821d171b9e8a9"
+    },
+    {
+      "path": "supabase/identity-worker/database.ts",
+      "bytes": 2410,
+      "sha256": "bf9464a7fe78fb9fc3a847b7eec90d019bd8915ddf7d116afdf3b196f95a19c2"
+    },
+    {
+      "path": "supabase/identity-worker/png.ts",
+      "bytes": 2467,
+      "sha256": "a691f711b74541994967b13349a47eeca8514b5c3a95450c95320c30a38d867b"
+    },
+    {
+      "path": "supabase/identity-worker/process.ts",
+      "bytes": 3053,
+      "sha256": "96e1a38b2e68e3ae58eeb198117e67e6cfe26441e27f76dc26229abfb31d7c79"
+    },
+    {
+      "path": "supabase/identity-worker/storage.ts",
+      "bytes": 2909,
+      "sha256": "e76d41a7896f3a1943a6c21ea585a024459a97ef537deeff39265fe3a0a3afbc"
+    },
+    {
+      "path": "supabase/migrations/20261014010000_person_identity_preparation.sql",
+      "bytes": 6108,
+      "sha256": "6b3b302a0f72e066bba9d209e239658249ca7a8906842902f2a463c6a6822b87"
+    },
+    {
+      "path": "supabase/migrations/20261021000000_person_identity_review_lifecycle.sql",
+      "bytes": 19051,
+      "sha256": "a561c9560eb64648e89b7f16bb5f30e7b745e81550ab8a75ba82484e695fd824"
+    },
+    {
+      "path": "supabase/migrations/20261023000000_identity_evidence_transport.sql",
+      "bytes": 15952,
+      "sha256": "64377f1137feb2f2f901090b1741b19470fed0d9a86d29e4d5c9ea535b28bc16"
+    },
+    {
+      "path": "supabase/migrations/20261023010000_identity_sealed_infrastructure.sql",
+      "bytes": 12492,
+      "sha256": "cdc6ce86b1fda113dfd9cdf1c64e30dbc3961260b5b2e2888f74a9dbc28555b1"
+    },
+    {
+      "path": "supabase/package-lock.json",
+      "bytes": 1756,
+      "sha256": "ca7290dcb6799ca2b73a948fc5af03180882ddd6ca16c764c87c4ad2fbb0ad7f"
+    },
+    {
+      "path": "supabase/package.json",
+      "bytes": 980,
+      "sha256": "04d4318fd37f1ee02c891d33b7aede24accc3000fce3cfca89d53b1b0983e79d"
+    },
+    {
+      "path": "supabase/tests/audit-fixture-roles.py",
+      "bytes": 1828,
+      "sha256": "34d2de114955fedba3e03379e7cc48a51b51e399be96c8735ea83f93be58c34c"
+    },
+    {
+      "path": "supabase/tests/clamd-disposable.conf",
+      "bytes": 438,
+      "sha256": "9a373a58ca44043e2baaec777a42e447ff9e4f808683e0d37d18bcec22be5309"
+    },
+    {
+      "path": "supabase/tests/identity-evidence-assertions.sql",
+      "bytes": 3436,
+      "sha256": "0fc29e05576592820773295be34e35504d527f58bb82843088ba7c780ce97ab2"
+    },
+    {
+      "path": "supabase/tests/identity-evidence-contract.test.mjs",
+      "bytes": 2184,
+      "sha256": "cc334183d204baefdc6feec319ea341f6f81740e59b375f493b2402b6356f014"
+    },
+    {
+      "path": "supabase/tests/identity-evidence-processor.test.ts",
+      "bytes": 2824,
+      "sha256": "8a12461393f627cd8c87261d42754e9ba38a57b277b7ebdf939d4ff42b490b73"
+    },
+    {
+      "path": "supabase/tests/identity-evidence-worker.test.ts",
+      "bytes": 5723,
+      "sha256": "8749dd96e8079d9cde2dbebca8f9dc9d817ca559e0796c7e3cfe7be777d129c1"
+    },
+    {
+      "path": "supabase/tests/identity-infrastructure-assertions.sql",
+      "bytes": 1955,
+      "sha256": "dcd7bd0962475414c25d3269f3c7a26dd906c9e9a2470a2c74c4e42195fdb51a"
+    },
+    {
+      "path": "supabase/tests/identity-infrastructure.test.ts",
+      "bytes": 8335,
+      "sha256": "a1fa7751cdd47b356acc66b2fb97b377a0e3ddc6ec2f6f38a7b28d2dff168084"
+    },
+    {
+      "path": "supabase/tests/identity-lifecycle-assertions.sql",
+      "bytes": 8851,
+      "sha256": "f3fdb9f00a9ba77deae18127c44b8e4666d10cbd6ba751724517ee2339cb01d8"
+    },
+    {
+      "path": "supabase/tests/identity-lifecycle-contract.test.mjs",
+      "bytes": 2359,
+      "sha256": "17b04470f92fe116d36e96d023ada183836d951150b6fced6fcbeecc104d9376"
+    },
+    {
+      "path": "supabase/tests/identity-preparation-api.test.ts",
+      "bytes": 1975,
+      "sha256": "7ad212b2aeba330e51cf7519117d297b7ea44dd2ae743475786543cc784319f3"
+    },
+    {
+      "path": "supabase/tests/identity-preparation-assertions.sql",
+      "bytes": 3813,
+      "sha256": "1b82773fce65ca16452343576ba30182b247055221ef79076f456dec060582f1"
+    },
+    {
+      "path": "supabase/tests/platform-identity-evidence.ts",
+      "bytes": 10694,
+      "sha256": "355a73daea4a74f871fd8a342e2aaf843510cc589e74b3136061a8efdfccf0ad"
+    },
+    {
+      "path": "supabase/tests/run-ci-sql.mjs",
+      "bytes": 3146,
+      "sha256": "09dab4bd293693e13a39765f09f73ab1474103882bff78d2576eb52df24aab4d"
+    }
+  ]
+}

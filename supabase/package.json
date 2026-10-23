@@ -16,6 +16,7 @@
     "provision:evaluation-data": "node scripts/provision_evaluation_data.mjs"
   },
   "dependencies": {
+    "postgres": "3.4.7",
     "standardwebhooks": "1.0.0"
   }
 }
