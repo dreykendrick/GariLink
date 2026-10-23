@@ -25,6 +25,18 @@ export const sql = [
   "select 'BEGIN SQL SUITE: verification-closed' as certification_stage;",
   read('tests/verification-closed-assertions.sql'),
   "select 'PASS SQL SUITE: verification-closed' as certification_stage;",
+  "select 'BEGIN SQL SUITE: identity-preparation' as certification_stage;",
+  read('tests/identity-preparation-assertions.sql'),
+  "select 'PASS SQL SUITE: identity-preparation' as certification_stage;",
+  "select 'BEGIN SQL SUITE: identity-lifecycle' as certification_stage;",
+  read('tests/identity-lifecycle-assertions.sql'),
+  "select 'PASS SQL SUITE: identity-lifecycle' as certification_stage;",
+  "select 'BEGIN SQL SUITE: identity-evidence' as certification_stage;",
+  read('tests/identity-evidence-assertions.sql'),
+  "select 'PASS SQL SUITE: identity-evidence' as certification_stage;",
+  "select 'BEGIN SQL SUITE: identity-infrastructure' as certification_stage;",
+  read('tests/identity-infrastructure-assertions.sql'),
+  "select 'PASS SQL SUITE: identity-infrastructure' as certification_stage;",
   'ROLLBACK;',
 ].join('\n');
 

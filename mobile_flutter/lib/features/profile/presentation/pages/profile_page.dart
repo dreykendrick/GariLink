@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../verification/data/identity_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../authentication/domain/entities/user.dart';
@@ -50,6 +51,11 @@ class ProfilePage extends ConsumerWidget {
             padding: const EdgeInsets.all(GariLinkSpacing.lg),
             child: Column(
               children: [
+                if (identityPreparationEnabled)
+                  OutlinedButton(
+                    onPressed: () => context.push('/identity-verification'),
+                    child: const Text('Identity preparation (development)'),
+                  ),
                 _buildMenuSection(context, ref),
                 const SizedBox(height: GariLinkSpacing.xl),
                 const Divider(),

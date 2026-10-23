@@ -1,5 +1,6 @@
 import {createGoogleRoutesProvider, publicRouteResult, RouteService} from "./route_service.ts";
 import type {RouteProvider} from "./route_service.ts";
+import {PrivateEvidenceStorage} from '../../identity-worker/storage.ts';
 
 interface ApiConfig {
   authRedirectUrl?: string;
@@ -8,6 +9,9 @@ interface ApiConfig {
   origins: string[];
   serviceRoleKey?: string;
   googleRoutesApiKey?: string;
+  identityEvidenceEnabled?: boolean;
+  identityIngestToken?: string;
+  identityReadToken?: string;
 }
 
 class HttpError extends Error {
@@ -626,6 +630,11 @@ export function createApi(config: ApiConfig, fetcher: typeof fetch = fetch, rout
       const privateRoutes = new Set([
         "GET /me",
         "POST /profile",
+        "GET /verification/identity",
+        "POST /verification/identity/cases",
+        "POST /verification/identity/evidence/reserve",
+        "POST /verification/identity/evidence/upload",
+        "POST /verification/identity/reviewer/evidence",
         "POST /auth/logout",
         "GET /workspaces",
         "POST /workspaces",
@@ -671,6 +680,87 @@ export function createApi(config: ApiConfig, fetcher: typeof fetch = fetch, rout
       if (!match) throw new HttpError(401, "Please sign in to continue.");
       const token = match[1];
       const authenticatedUser = await call("/auth/v1/user", "GET", undefined, token);
+      if (route === "GET /verification/identity")
+        return ok(await call("/rest/v1/rpc/garilink_identity_status", "POST", {}, token));
+      if (route === "POST /verification/identity/cases") {
+        const body = await jsonBody(request);
+        if (Object.keys(body).some(key => !['requestId','policyVersion'].includes(key)))
+          throw new HttpError(400, 'Invalid identity preparation request.');
+        return ok(await call("/rest/v1/rpc/garilink_identity_create_case", "POST", {input_value:body}, token));
+      }
+      if (route === "POST /verification/identity/evidence/reserve") {
+        if (!config.identityEvidenceEnabled || !config.identityIngestToken)
+          throw new HttpError(503,"Identity evidence collection is not available.");
+        const body=await jsonBody(request);
+        if (Object.keys(body).some(key=>!['caseId','expectedRevision','expectedPolicy','requestId','mimeType','sizeBytes'].includes(key)))
+          throw new HttpError(400,'Invalid evidence reservation.');
+        const reservation=await call('/rest/v1/rpc/garilink_identity_reserve_evidence','POST',{
+          case_key:textField(body,'caseId',36),expected_revision:body.expectedRevision,
+          expected_policy:body.expectedPolicy,request_key:textField(body,'requestId',36),
+          declared_mime:textField(body,'mimeType',32),declared_size:body.sizeBytes,
+        },token);
+        return ok({documentId:reservation.documentId,version:reservation.version,expiresAt:reservation.expiresAt,
+          uploadPath:'/verification/identity/evidence/upload'},201);
+      }
+      if (route === 'POST /verification/identity/evidence/upload') {
+        if(!config.identityEvidenceEnabled || !config.identityIngestToken)
+          throw new HttpError(503,'Identity evidence collection is not available.');
+        const documentId=request.headers.get('x-evidence-document-id')??'';
+        const revision=request.headers.get('x-evidence-revision')??'';
+        if(!new RegExp(`^${uuid}$`,'i').test(documentId)|| !/^[1-9][0-9]{0,8}$/.test(revision) ||
+          request.headers.get('content-type')!=='image/png' || request.headers.has('content-encoding'))
+          throw new HttpError(400,'Invalid evidence upload.');
+        const authorize=()=>call('/rest/v1/rpc/garilink_identity_upload_authorize','POST',
+          {document_key:documentId,expected_revision:Number(revision)},token);
+        const reservation=await authorize();
+        const reader=request.body?.getReader();if(!reader)throw new HttpError(400,'Evidence is required.');
+        let receiveExpired=false;
+        const receiveDeadline=setTimeout(()=>{receiveExpired=true;void reader.cancel().catch(()=>{});},15000);
+        const chunks:Uint8Array[]=[];let size=0;
+        try{while(true){const next=await reader.read();if(next.done)break;size+=next.value.length;
+          if(size>5242880 || size>reservation.sizeBytes)throw new HttpError(413,'Evidence is too large.');chunks.push(next.value);}}
+        catch(error){await reader.cancel();throw error;}finally{clearTimeout(receiveDeadline);reader.releaseLock();}
+        if(receiveExpired)throw new HttpError(408,'Evidence upload timed out. Please retry.');
+        if(size!==reservation.sizeBytes)throw new HttpError(400,'Evidence size does not match the reservation.');
+        // Recheck after receiving bytes; no upload bearer token exists to reuse.
+        await authorize();
+        const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+        const store=new PrivateEvidenceStorage(config.supabaseUrl,config.anonKey,config.identityIngestToken,fetcher);
+        await store.create('verification-private',reservation.objectPath,bytes,AbortSignal.any([request.signal,AbortSignal.timeout(8000)]));
+        await authorize(); // Upload completion is not finalization or acceptance.
+        return ok({documentId,state:'UPLOADED',accepted:false},201);
+      }
+      if (route === "POST /verification/identity/reviewer/evidence") {
+        if (!config.identityEvidenceEnabled || !config.identityReadToken)
+          throw new HttpError(503,"Reviewer evidence access is not available.");
+        const body=await jsonBody(request);
+        if(Object.keys(body).some(key=>!['caseId','requestId'].includes(key))) throw new HttpError(400,'Invalid evidence access request.');
+        if(request.headers.has('range'))throw new HttpError(416,'Range requests are not supported for private evidence.');
+        const access=await call('/rest/v1/rpc/garilink_identity_reviewer_sealed','POST',{
+          case_key:textField(body,'caseId',36),request_key:textField(body,'requestId',36)},token);
+        const store=new PrivateEvidenceStorage(config.supabaseUrl,config.anonKey,config.identityReadToken,fetcher);
+        const resolved=await call('/rest/v1/rpc/garilink_identity_proxy_resolve','POST',{
+          access_key:access.accessId,reviewer_key:authenticatedUser.id},config.identityReadToken);
+        const bytes=await store.read('verification-sealed',resolved.objectPath,AbortSignal.any([request.signal,AbortSignal.timeout(8000)]));
+        const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(v=>v.toString(16).padStart(2,'0')).join('');
+        if(bytes.length!==access.sizeBytes || access.mimeType!=='image/png' || hash!==access.sha256)
+          throw new HttpError(503,'Evidence integrity check failed.');
+        // Revocation during buffered retrieval also denies delivery. A stream
+        // already delivered to a reviewer cannot be recalled.
+        const fresh=await call('/rest/v1/rpc/garilink_identity_reviewer_sealed','POST',{
+          case_key:textField(body,'caseId',36),request_key:crypto.randomUUID()},token);
+        if(fresh.documentId!==access.documentId || fresh.sha256!==hash || request.signal.aborted)
+          throw new HttpError(403,'Evidence access changed. Please retry.');
+        const deliveryHeaders=new Headers(headers);
+        deliveryHeaders.set('Content-Type','image/png');
+        deliveryHeaders.set('Cache-Control','private, no-store, max-age=0');
+        deliveryHeaders.set('Pragma','no-cache');
+        deliveryHeaders.set('X-Content-Type-Options','nosniff');
+        deliveryHeaders.set('Content-Disposition','attachment; filename="identity-evidence.png"');
+        deliveryHeaders.set('Accept-Ranges','none');
+        deliveryHeaders.set('Content-Length',String(bytes.length));
+        return new Response(bytes,{headers:deliveryHeaders});
+      }
       if (route === "POST /v2/routes/resolve") {
         const now = Date.now();
         const key = token.slice(-24);
