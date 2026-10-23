@@ -38,7 +38,8 @@ export class PrivateEvidenceStorage {
       const detail=await response.json().catch(()=>null);
       const candidate=detail?.code??detail?.error;
       const safeCodes=new Set(['NoSuchKey','NoSuchBucket','AccessDenied','Unauthorized','InvalidJWT',
-        'InvalidSignature','SignatureDoesNotMatch','InvalidKey','StorageBackendError','DatabaseError','42501']);
+        'InvalidSignature','SignatureDoesNotMatch','InvalidKey','StorageBackendError','DatabaseError','42501',
+        'InternalError','UnknownError']);
       const code=typeof candidate==='string' && safeCodes.has(candidate)?candidate:'UNSPECIFIED';
       const stage=bucket==='verification-sealed'?'sealed-read':'quarantine-read';
       throw new Error(`STORAGE_READ_REJECTED stage=${stage} status=${response.status} code=${code}`);

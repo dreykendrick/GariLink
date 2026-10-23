@@ -41,6 +41,8 @@ test('Storage failure diagnostics retain status/code without leaking provider de
     {bucket:'verification-private',stage:'quarantine-read',status:403,detail:{error:'AccessDenied',message:'synthetic-secret-token'},code:'AccessDenied'},
     {bucket:'verification-sealed',stage:'sealed-read',status:401,detail:{code:'private/path/synthetic-secret-token',message:'applicant identity'},code:'UNSPECIFIED'},
     {bucket:'verification-sealed',stage:'sealed-read',status:500,detail:'sensitive non-JSON provider response',code:'UNSPECIFIED'},
+    {bucket:'verification-sealed',stage:'sealed-read',status:500,detail:{code:'InternalError',message:'private backend details'},code:'InternalError'},
+    {bucket:'verification-sealed',stage:'sealed-read',status:500,detail:{code:'UnknownError',message:'private database details'},code:'UnknownError'},
   ]){
     let calls=0;
     const store=new PrivateEvidenceStorage('https://project.supabase.co','public',scoped('garilink_evidence_sealer'),async()=>{
